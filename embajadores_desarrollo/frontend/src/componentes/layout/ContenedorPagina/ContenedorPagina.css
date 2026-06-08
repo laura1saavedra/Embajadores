@@ -1,0 +1,32 @@
+.contenedor-pagina {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 20px 32px;
+}
+
+.contenedor-pagina__encabezado {
+  margin-bottom: 24px;
+}
+
+.contenedor-pagina__titulo {
+  margin-bottom: 10px;
+  font-size: 32px;
+  color: #1f2937;
+}
+
+.contenedor-pagina__descripcion {
+  max-width: 820px;
+  font-size: 16px;
+  color: #4b5563;
+}
+
+@media (max-width: 768px) {
+  .contenedor-pagina {
+    padding: 20px 16px 28px;
+  }
+
+  .contenedor-pagina__titulo {
+    font-size: 28px;
+  }
+}

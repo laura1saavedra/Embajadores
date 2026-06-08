@@ -1,0 +1,21 @@
+# Entorno virtual
+venv/
+env/
+.venv/
+
+# Variables de entorno (contienen credenciales)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+
+# IDEs
+.vscode/
+.idea/
+*.swp

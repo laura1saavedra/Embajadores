@@ -1,0 +1,20 @@
+# Core API
+fastapi==0.115.12
+uvicorn==0.34.2
+uvloop==0.21.0
+
+# Base de datos
+sqlalchemy==2.0.41
+psycopg2-binary==2.9.10
+
+# Config y validación
+python-dotenv==1.1.0
+pydantic==2.11.4
+
+# HTTP cliente (para llamadas entre servicios si necesitas)
+httpx==0.28.1
+requests==2.32.3
+
+# Utilidades de fecha
+python-dateutil==2.9.0.post0
+pytz==2025.2

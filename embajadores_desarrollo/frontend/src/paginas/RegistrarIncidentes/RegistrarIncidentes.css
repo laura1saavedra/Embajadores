@@ -1,0 +1,513 @@
+/* ── Hero ─────────────────────────────────────────────────────── */
+
+.ri__hero {
+  margin-bottom: 20px;
+}
+
+.ri__hero-etiqueta {
+  display: inline-block;
+  background: linear-gradient(135deg, #e30613 0%, #ff2b3a 100%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: 999px;
+  padding: 4px 10px;
+  margin-bottom: 8px;
+}
+
+.ri__hero-titulo {
+  font-size: 24px;
+  font-weight: 800;
+  color: #121a3a;
+  margin: 0 0 8px;
+  line-height: 1.15;
+}
+
+.ri__hero-titulo span {
+  color: #e30613;
+}
+
+.ri__hero-desc {
+  font-size: 14px;
+  color: #6b7280;
+  max-width: 620px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* ── Alertas ─────────────────────────────────────────────────── */
+
+.ri__alerta {
+  position: relative;
+  border-radius: 18px;
+  padding: 16px 18px 16px 20px;
+  margin-bottom: 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  border: 1px solid transparent;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+}
+
+.ri__alerta::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 0;
+  width: 5px;
+  border-radius: 999px;
+}
+
+.ri__alerta--exito {
+  background: linear-gradient(180deg, #f2fcf6 0%, #edf9f2 100%);
+  color: #166534;
+  border-color: #ccebd8;
+}
+
+.ri__alerta--exito::before {
+  background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+}
+
+.ri__alerta--error {
+  background: linear-gradient(180deg, #fff7f7 0%, #fff1f1 100%);
+  color: #991b1b;
+  border-color: #f3cdcd;
+}
+
+.ri__alerta--error::before {
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+}
+
+.ri__enlaces-exito {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.ri__enlace {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  transition: all 0.18s ease;
+}
+
+.ri__enlace:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+/* ── Layout ─────────────────────────────────────────────────── */
+
+.ri__layout {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+/* ── Card formulario ────────────────────────────────────────── */
+
+.ri__card {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #ececec;
+  border-radius: 34px;
+  padding: 28px 30px 24px;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+/* ── Bloques internos ───────────────────────────────────────── */
+
+.ri__bloque {
+  padding: 0;
+  overflow: visible;
+}
+
+.ri__bloque-titulo {
+  font-size: 16px;
+  font-weight: 700;
+  color: #121a3a;
+  margin: 0 0 14px;
+}
+
+.ri__bloque-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+/* ── Divisor ────────────────────────────────────────────────── */
+
+.ri__divisor {
+  border: none;
+  border-top: 1px solid #ececec;
+  margin: 28px 0;
+}
+
+/* ── Grid campos generales ──────────────────────────────────── */
+
+.ri__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+/* ── Campo ──────────────────────────────────────────────────── */
+
+.ri__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ri__campo label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.ri__requerido {
+  color: #e30613;
+}
+
+.ri__campo input,
+.ri__campo select,
+.ri__campo textarea {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #d9d9df;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: 14px;
+  color: #111827;
+  background: #ffffff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.ri__campo input:focus,
+.ri__campo select:focus,
+.ri__campo textarea:focus {
+  outline: none;
+  border-color: #e30613;
+  box-shadow: 0 0 0 3px rgba(227, 6, 19, 0.1);
+}
+
+.ri__campo input::placeholder,
+.ri__campo textarea::placeholder {
+  color: #9ca3af;
+}
+
+/* ── Tabla aplicaciones / tipo de falla ─────────────────────── */
+
+.ri__tabla-head {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr 40px;
+  gap: 8px;
+  padding: 0 2px 6px;
+  border-bottom: 1px solid #f0dede;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.ri__tabla-head-num {
+  text-align: center;
+}
+
+.ri__tabla-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+  overflow: visible;
+}
+
+.ri__fila {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr 40px;
+  gap: 8px;
+  align-items: center;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 8px 10px;
+  transition: border-color 0.18s;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+.ri__fila:hover {
+  border-color: #f1b7bc;
+}
+
+.ri__fila:has(.select-buscable__control--abierto) {
+  z-index: 100;
+}
+
+.ri__fila-num {
+  font-size: 11px;
+  font-weight: 800;
+  color: #e30613;
+  text-align: center;
+}
+
+/* ── Botón quitar fila ──────────────────────────────────────── */
+
+.ri__btn-quitar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+  color: #e30613;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  justify-self: center;
+}
+
+.ri__btn-quitar:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #e30613;
+}
+
+.ri__btn-quitar:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── Botón agregar fila ─────────────────────────────────────── */
+
+.ri__btn-agregar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ri__btn-agregar:hover {
+  border-color: #e30613;
+  color: #e30613;
+  background: #fff5f6;
+}
+
+/* ── Acciones formulario ────────────────────────────────────── */
+
+.ri__acciones {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 22px;
+  margin-top: 22px;
+  border-top: 1px solid #ececec;
+}
+
+.ri__boton {
+  border: none;
+  border-radius: 12px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ri__boton--principal {
+  background: linear-gradient(135deg, #e30613 0%, #ff2b3a 100%);
+  color: #fff;
+  box-shadow: 0 8px 16px rgba(227, 6, 19, 0.18);
+}
+
+.ri__boton--principal:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(227, 6, 19, 0.22);
+}
+
+.ri__boton--secundario {
+  background: #f4f4f5;
+  color: #1f2937;
+}
+
+.ri__boton--secundario:hover:not(:disabled) {
+  background: #e8e8ec;
+}
+
+.ri__boton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+
+@media (max-width: 1280px) {
+  .ri__card {
+    padding: 22px 20px 20px;
+  }
+
+  .ri__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ri__hero {
+    margin-bottom: 16px;
+  }
+
+  .ri__hero-titulo {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .ri__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .ri__layout {
+    gap: 14px;
+  }
+
+  .ri__grid {
+    gap: 12px 14px;
+  }
+
+  .ri__divisor {
+    margin: 16px 0;
+  }
+
+  .ri__acciones {
+    padding-top: 14px;
+    margin-top: 14px;
+  }
+}
+
+@media (max-width: 860px) {
+  .ri__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ri__hero {
+    margin-bottom: 14px;
+  }
+
+  .ri__hero-titulo {
+    font-size: 20px;
+  }
+
+  .ri__hero-desc {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 600px) {
+  .ri__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ri__card {
+    padding: 18px 14px 16px;
+    border-radius: 18px;
+  }
+
+  .ri__tabla-head,
+  .ri__fila {
+    grid-template-columns: 28px 1fr 1fr 34px;
+    gap: 7px;
+  }
+
+  .ri__acciones {
+    justify-content: stretch;
+  }
+
+  .ri__boton {
+    width: 100%;
+  }
+
+  .ri__bloque-cabecera {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .ri__btn-agregar {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ri__hero-titulo {
+    font-size: 18px;
+  }
+
+  .ri__hero-desc {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 440px) {
+  .ri__tabla-head {
+    display: none;
+  }
+
+  .ri__fila {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .ri__fila-num {
+    display: none;
+  }
+
+  .ri__btn-quitar {
+    justify-self: end;
+  }
+
+  .ri__hero-etiqueta {
+    font-size: 10px;
+    padding: 4px 9px;
+  }
+
+  .ri__hero-titulo {
+    font-size: 17px;
+  }
+}

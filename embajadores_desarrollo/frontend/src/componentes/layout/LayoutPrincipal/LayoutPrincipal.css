@@ -1,0 +1,30 @@
+.layout-principal {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(255, 86, 112, 0.08), transparent 28%),
+    radial-gradient(circle at top right, rgba(255, 56, 92, 0.06), transparent 24%),
+    linear-gradient(180deg, #fff7f8 0%, #fffafb 38%, #fdf6f7 100%);
+}
+
+.layout-principal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 84, 112, 0.05) 0, rgba(255, 84, 112, 0.05) 6px, transparent 7px),
+    radial-gradient(circle at 82% 10%, rgba(255, 84, 112, 0.05) 0, rgba(255, 84, 112, 0.05) 5px, transparent 6px),
+    radial-gradient(circle at 88% 78%, rgba(255, 84, 112, 0.04) 0, rgba(255, 84, 112, 0.04) 4px, transparent 5px),
+    radial-gradient(circle at 16% 82%, rgba(255, 84, 112, 0.04) 0, rgba(255, 84, 112, 0.04) 5px, transparent 6px);
+  opacity: 0.9;
+}
+
+.layout-principal__contenido {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 0 0 32px;
+}

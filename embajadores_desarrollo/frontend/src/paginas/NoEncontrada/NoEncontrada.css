@@ -1,0 +1,65 @@
+.no-encontrada {
+  display: flex;
+  justify-content: center;
+}
+
+.no-encontrada__tarjeta {
+  width: 100%;
+  max-width: 760px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  padding: 40px 32px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  text-align: center;
+}
+
+.no-encontrada__codigo {
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+  color: #2563eb;
+  margin-bottom: 16px;
+}
+
+.no-encontrada__subtitulo {
+  margin-bottom: 16px;
+  font-size: 28px;
+  color: #111827;
+}
+
+.no-encontrada__texto {
+  margin: 0 auto 28px;
+  max-width: 560px;
+  font-size: 16px;
+  color: #4b5563;
+}
+
+.no-encontrada__acciones {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.no-encontrada__boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.no-encontrada__boton--principal {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.no-encontrada__boton--secundario {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #dbeafe;
+}

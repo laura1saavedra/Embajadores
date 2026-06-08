@@ -1,0 +1,251 @@
+
+/* ──────────────────────── HERO ────────────────────────────────── */
+
+.configuracion__hero {
+  margin-bottom: 28px;
+}
+
+.configuracion__hero-texto {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.configuracion__hero-etiqueta {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  margin-bottom: 8px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #e30613 0%, #ff2b3a 100%);;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.configuracion__hero-titulo {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: #121a3a;
+}
+
+.configuracion__hero-titulo span {
+  color: #e30613;
+}
+
+.configuracion__hero-descripcion {
+  margin: 0;
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+/* ────────────────────────── ALERTAS ───────────────────────────────────── */
+
+.configuracion__alerta {
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.configuracion__alerta--error {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+.configuracion__alerta--exito {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+/* ──────────────────── GRID PRINCIPAL ────────────────────────────── */
+
+.configuracion__grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(300px, 1fr)
+  );
+  gap: 22px;
+}
+
+/* ─────────────────────── TARJETA ─────────────────────────────────────── */
+
+.configuracion__tarjeta {
+  background: #ffffff;
+  border: 1px solid #ececec;
+  border-radius: 24px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 260px;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
+  transition: all 0.2s ease;
+}
+
+.configuracion__tarjeta:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+}
+
+.configuracion__tarjeta-superior {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ─────────────────────── ICONOS ─────────────────────────────────── */
+
+.configuracion__icono {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.configuracion__icono--rojo {
+  background: rgba(227, 6, 19, 0.12);
+  color: #e30613;
+}
+
+.configuracion__icono--azul {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.configuracion__icono--verde {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.configuracion__icono--morado {
+  background: rgba(147, 51, 234, 0.12);
+  color: #9333ea;
+}
+
+/* ───────────────────── CONTADORES ────────────────────────────────────── */
+
+.configuracion__contador {
+  min-width: 52px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.configuracion__contador--rojo {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.configuracion__contador--azul {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.configuracion__contador--verde {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.configuracion__contador--morado {
+  background: #f3e8ff;
+  color: #9333ea;
+}
+
+/* ──────────────────────── CUERPO TARJETA ──────────────────────────────── */
+
+.configuracion__tarjeta-cuerpo h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.configuracion__tarjeta-cuerpo p {
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+/* ──────────────────── BOTÓN ──────────────────────────────────── */
+
+.configuracion__boton-outline {
+  width: 100%;
+  height: 44px;
+
+  border-radius: 12px;
+  border: 1px solid #e30613;
+
+  background: transparent;
+  color: #e30613;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.configuracion__boton-outline:hover:not(:disabled) {
+  background: #e30613;
+  color: #ffffff;
+}
+
+.configuracion__boton-outline:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* ─────────────── TEXTOS GENERALES ─────────────────────────────────── */
+
+.configuracion__texto-simple {
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ─────────────────────── RESPONSIVE ──────────────────────────────── */
+
+@media (max-width: 768px) {
+  .configuracion__hero {
+    padding: 24px;
+  }
+
+  .configuracion__hero-titulo {
+    font-size: 30px;
+  }
+
+  .configuracion__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .configuracion__tarjeta {
+    min-height: auto;
+  }
+}
