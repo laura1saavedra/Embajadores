@@ -50,7 +50,7 @@ from db import check_connection
 import models  # noqa: F401
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-cors_raw = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+cors_raw = os.getenv("CORS_ORIGINS", "http://localhost:3000")
 cors_origins = [o.strip() for o in cors_raw.split(",") if o.strip()]
 
 # ── Crear aplicacion FastAPI ──────────────────────────────────────────────────
