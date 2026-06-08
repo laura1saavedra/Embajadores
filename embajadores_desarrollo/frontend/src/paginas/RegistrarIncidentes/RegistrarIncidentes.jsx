@@ -163,6 +163,21 @@ function RegistrarIncidente() {
       (fila) => fila.aplicacionId && fila.tipoFallaId
     );
 
+    const combinaciones = new Set();
+
+    for (const fila of filasValidas) {
+      const clave = `${fila.aplicacionId}-${fila.tipoFallaId}`;
+
+      if (combinaciones.has(clave)) {
+        setMensajeError(
+          'No se puede registrar la misma combinación de aplicación y tipo de falla más de una vez.'
+        );
+        return;
+      }
+
+      combinaciones.add(clave);
+    }
+
     if (filasValidas.length === 0) {
       setMensajeError(
         'Selecciona al menos una aplicación y un tipo de falla.'
