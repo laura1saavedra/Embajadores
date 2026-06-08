@@ -241,6 +241,22 @@ class IncidenteService:
                 aplicaciones_afectadas = datos.get("aplicaciones_afectadas", [])
                 if not aplicaciones_afectadas:
                     return None, "Debe registrar al menos una aplicación afectada"
+                
+                combinaciones = set()
+
+                for item in aplicaciones_afectadas:
+                    clave = (
+                        item.get("aplicacion_id"),
+                        item.get("tipo_falla_id")
+                    )
+
+                    if clave in combinaciones:
+                        return (
+                            None,
+                            "No se puede registrar la misma combinación de aplicación y tipo de falla más de una vez."
+                        )
+
+                    combinaciones.add(clave)
 
                 usuarios_afectados = datos.get("usuarios_afectados")
                 usuarios_totalidad = datos.get("usuarios_totalidad")
@@ -391,6 +407,22 @@ class IncidenteService:
 
                 if "aplicaciones_afectadas" in datos and datos["aplicaciones_afectadas"] is not None:
                     aplicaciones_afectadas = datos["aplicaciones_afectadas"]
+
+                    combinaciones = set()
+
+                    for item in aplicaciones_afectadas:
+                        clave = (
+                            item.get("aplicacion_id"),
+                            item.get("tipo_falla_id")
+                        )
+
+                        if clave in combinaciones:
+                            return (
+                                None,
+                                "No se puede registrar la misma combinación de aplicación y tipo de falla más de una vez."
+                            )
+
+                        combinaciones.add(clave)
 
                     if not aplicaciones_afectadas:
                         return None, "Debe registrar al menos una aplicación afectada"
