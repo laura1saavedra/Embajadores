@@ -13,7 +13,7 @@ la aplicacion afectada del incidente se asocia automaticamente a ese masivo.
 
 import logging
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, Tuple, Dict, Any, List
 
 from sqlalchemy.orm import joinedload
@@ -250,8 +250,6 @@ class MasivoService:
 
                 continue
 
-            hace_5_minutos = datetime.now() - timedelta(minutes=5)
-
             aplicaciones_relacionadas = (
                 db.query(AplicacionAfectada)
                 .join(
@@ -260,7 +258,6 @@ class MasivoService:
                 )
                 .filter(
                     Incidente.estado == "abierto",
-                    Incidente.fecha_hora_reporte >= hace_5_minutos,
                     AplicacionAfectada.aplicacion_id == aplicacion_id,
                     AplicacionAfectada.tipo_falla_id == tipo_falla_id,
                     AplicacionAfectada.masivo_id.is_(None),
