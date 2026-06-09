@@ -64,6 +64,12 @@ const normalizarIncidente = (i) => {
     i.aplicaciones_afectadas
   );
 
+  const masivosIds = Array.isArray(i.masivos_ids)
+    ? i.masivos_ids
+    : i.masivo_id
+      ? [i.masivo_id]
+      : [];
+
   return {
     idIncidente: i.id_incidente,
 
@@ -77,8 +83,10 @@ const normalizarIncidente = (i) => {
     usuarioNombre: i.usuario_nombre || '',
     usuarioCorreo: i.usuario_correo || '',
 
-    masivoId: i.masivo_id || null,
-    perteneceAMasivo: Boolean(i.pertenece_a_masivo),
+    masivoId: masivosIds.length > 0 ? masivosIds[0] : null,
+    masivosIds,
+    perteneceAMasivo:
+      Boolean(i.pertenece_a_masivo) || masivosIds.length > 0,
     mensaje: i.mensaje || '',
 
     usuariosAfectados: i.usuarios_afectados ?? 0,
