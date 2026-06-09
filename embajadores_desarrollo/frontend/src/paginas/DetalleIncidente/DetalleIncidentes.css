@@ -33,10 +33,32 @@
 
 .detalle-incidente__titulo {
   margin: 0;
-  font-size: 34px;
+  font-size: 30px;
   font-weight: 800;
   line-height: 1.15;
   color: #121a3a;
+}
+
+.detalle-incidente__encabezado-titulo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.detalle-incidente__boton-volver {
+  border: none;
+  background: transparent;
+  color: #121a3a;
+  font-size: 24px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.detalle-incidente__boton-volver:hover {
+  background: #fff1f2;
+  color: #e30613;
+  transform: translateX(-2px);
 }
 
 /* ── Resumen superior ───────────────────────────────────────── */

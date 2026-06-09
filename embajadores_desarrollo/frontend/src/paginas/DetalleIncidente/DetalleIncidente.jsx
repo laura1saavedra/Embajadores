@@ -137,11 +137,22 @@ function DetalleIncidente() {
     <LayoutPrincipal>
       <ContenedorPagina
         titulo={
-          <span className="detalle-incidente__titulo">
-            Incidente #{incidente.idIncidente}
-          </span>
+          <div className="detalle-incidente__encabezado-titulo">
+            <button
+              type="button"
+              className="detalle-incidente__boton-volver"
+              onClick={() => navegar('/historial-incidentes')}
+              aria-label="Volver al historial"
+            >
+              ←
+            </button>
+
+            <span className="detalle-incidente__titulo">
+              Incidente #{incidente.idIncidente}
+            </span>
+          </div>
         }
-        descripcion="Consulta el detalle completo del incidente."
+        descripcion="Aquí puedes revisar la información completa del incidente y su historial."
       >
         {mensajeError && (
           <div className="detalle-incidente__alerta">
