@@ -119,6 +119,7 @@ const normalizarIncidente = (i) => {
 
     estado: i.estado || 'abierto',
     fechaHoraReporte: i.fecha_hora_reporte || null,
+    fechaHoraCierre: i.fecha_hora_cierre || null,
 
     aplicacionesAfectadas,
 

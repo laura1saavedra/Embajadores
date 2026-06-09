@@ -95,6 +95,50 @@
   color: #111827;
 }
 
+/* ── Fechas ─────────────────────────────────────────────── */
+
+.detalle-incidente__fechas {
+  width: 100%;
+  min-height: 96px;
+  background: #ffffff;
+  border: 1px solid #f0dede;
+  border-radius: 18px;
+  padding: 20px 24px;
+  margin-bottom: 22px;
+  box-shadow: 0 14px 30px rgba(227, 6, 19, 0.05);
+
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.detalle-incidente__fecha-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detalle-incidente__fecha-item span {
+  font-size: 12px;
+  font-weight: 900;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.detalle-incidente__fecha-item strong {
+  font-size: 15px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.detalle-incidente__fecha-divisor {
+  width: 1px;
+  align-self: stretch;
+  background: #e5e7eb;
+}
+
 /* ── Botones y acciones ─────────────────────────────────────── */
 
 .detalle-incidente__barra-acciones {
@@ -298,4 +342,15 @@
   .detalle-incidente__tabla-apps {
     min-width: 460px;
   }
+  
+  .detalle-incidente__fechas {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .detalle-incidente__fecha-divisor {
+    width: 100%;
+    height: 1px;
+  }
+
 }

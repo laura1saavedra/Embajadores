@@ -38,11 +38,20 @@ function DetalleIncidente() {
       setCargando(true);
       setMensajeError('');
 
-      const respuesta = await incidenteServicio.obtenerIncidentePorId(
-        idIncidente
-      );
+      const [respuesta, historialRespuesta] = await Promise.all([
+        incidenteServicio.obtenerIncidentePorId(idIncidente),
+        incidenteServicio.obtenerHistorialPorIncidente(idIncidente),
+      ]);
 
-      setIncidente(respuesta);
+      const cierre = historialRespuesta
+        .filter((item) => item.estadoNuevo === 'cerrado')
+        .sort((a, b) => new Date(b.fechaCambio) - new Date(a.fechaCambio))[0];
+
+      setIncidente({
+        ...respuesta,
+        fechaHoraCierre: cierre?.fechaCambio || null,
+      });
+
     } catch (error) {
       setMensajeError(error.message || 'No fue posible cargar el incidente.');
     } finally {
@@ -133,6 +142,18 @@ function DetalleIncidente() {
     );
   }
 
+  const formatearFecha = (fecha) => {
+    if (!fecha) return 'Sin registrar';
+
+    return new Intl.DateTimeFormat('es-CO', {
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(fecha));
+  };
+
   return (
     <LayoutPrincipal>
       <ContenedorPagina
@@ -191,6 +212,24 @@ function DetalleIncidente() {
             </div>
           </div>
         </div>
+
+        <div className="detalle-incidente__fechas">
+            <div className="detalle-incidente__fecha-item">
+              <span>Fecha generación</span>
+              <strong>{formatearFecha(incidente.fechaHoraReporte)}</strong>
+            </div>
+
+            {incidente.estado === 'cerrado' && (
+              <>
+                <div className="detalle-incidente__fecha-divisor" />
+
+                <div className="detalle-incidente__fecha-item">
+                  <span>Fecha cierre</span>
+                  <strong>{formatearFecha(incidente.fechaHoraCierre)}</strong>
+                </div>
+              </>
+            )}
+          </div>
 
         {(puedeCambiarEstado || puedeEliminar) && (
           <div className="detalle-incidente__barra-acciones">
