@@ -232,7 +232,7 @@ function RegistrarIncidente() {
       if (incidentePerteneceAMasivo) {
         setMensajeExito(
           creado.mensaje ||
-            `Incidente #${creado.idIncidente} registrado correctamente. Este incidente fue asociado al incidente masivo #${creado.masivoId} y se podrá consultar en la sección de Masivos.`
+            `Incidente #${creado.idIncidente} registrado correctamente. Este incidente pertenece al incidente masivo #${creado.masivoId}.`
         );
       } else {
         setMensajeExito(
@@ -298,12 +298,18 @@ function RegistrarIncidente() {
 
             <div className="ri__enlaces-exito">
               {perteneceAMasivo && masivoRegistradoId ? (
-                <Link
-                  to={`/detalle-masivo/${masivoRegistradoId}`}
-                  className="ri__enlace"
-                >
-                  Ver masivo #{masivoRegistradoId} →
-                </Link>
+                <>
+                  <Link to="/masivos" className="ri__enlace">
+                    Ir a resumen →
+                  </Link>
+
+                  <Link
+                    to={`/detalle-masivo/${masivoRegistradoId}`}
+                    className="ri__enlace"
+                  >
+                    Ver incidente masivo #{masivoRegistradoId} →
+                  </Link>
+                </>
               ) : (
                 <>
                   <Link
@@ -436,9 +442,7 @@ function RegistrarIncidente() {
               <div className="ri__tabla-body">
                 {filasAplicaciones.map((fila, idx) => (
                   <div key={fila.id} className="ri__fila">
-                    <span className="ri__fila-num">
-                      {idx + 1}
-                    </span>
+                    <span className="ri__fila-num">{idx + 1}</span>
 
                     <SelectBuscable
                       id={`app-${fila.id}`}
@@ -501,9 +505,7 @@ function RegistrarIncidente() {
                 className="ri__boton ri__boton--principal"
                 disabled={guardando}
               >
-                {guardando
-                  ? 'Guardando...'
-                  : 'Registrar incidente'}
+                {guardando ? 'Guardando...' : 'Registrar incidente'}
               </button>
             </div>
           </div>
