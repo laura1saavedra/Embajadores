@@ -25,7 +25,7 @@ from services.masivo_service import MasivoService
 logger = logging.getLogger(__name__)
 
 
-# ── Helpers de serializacion ──────────────────────────────────────────────────
+# ── Helpers de serialización ──────────────────────────────────────────────────
 
 def _obtener_masivos_ids(i: Incidente) -> List[int]:
     masivos_ids = []
@@ -37,13 +37,24 @@ def _obtener_masivos_ids(i: Incidente) -> List[int]:
     return masivos_ids
 
 
-def _incidente_a_dict(i: Incidente, detallado: bool = False) -> Dict[str, Any]:
+def _incidente_a_dict(
+    i: Incidente,
+    solo_individuales: bool = False,
+) -> Dict[str, Any]:
     cav = i.cav
     ciudad = cav.ciudad if cav else None
     usuario = i.usuario
     masivos_ids = _obtener_masivos_ids(i)
 
-    base = {
+    aplicaciones_afectadas = i.aplicaciones_afectadas or []
+
+    if solo_individuales:
+        aplicaciones_afectadas = [
+            aa for aa in aplicaciones_afectadas
+            if aa.masivo_id is None
+        ]
+
+    return {
         "id_incidente": i.id_incidente,
         "cav_id": i.cav_id,
         "cav_nombre": cav.nombre_cav if cav else None,
@@ -67,11 +78,9 @@ def _incidente_a_dict(i: Incidente, detallado: bool = False) -> Dict[str, Any]:
                 "nombre_tipo": aa.tipo_falla.nombre_tipo if aa.tipo_falla else None,
                 "masivo_id": aa.masivo_id,
             }
-            for aa in i.aplicaciones_afectadas
+            for aa in aplicaciones_afectadas
         ],
     }
-
-    return base
 
 
 def _historial_a_dict(h: HistorialIncidente) -> Dict[str, Any]:
@@ -126,11 +135,6 @@ class IncidenteService:
                         joinedload(Incidente.aplicaciones_afectadas)
                             .joinedload(AplicacionAfectada.tipo_falla),
                     )
-                    .filter(
-                        ~Incidente.aplicaciones_afectadas.any(
-                            AplicacionAfectada.masivo_id.isnot(None)
-                        )
-                    )
                     .order_by(Incidente.fecha_hora_reporte.desc())
                 )
 
@@ -149,15 +153,13 @@ class IncidenteService:
                     query = (
                         query.join(
                             AplicacionAfectada,
-                            AplicacionAfectada.incidente_id == Incidente.id_incidente
+                            AplicacionAfectada.incidente_id == Incidente.id_incidente,
                         )
                         .join(
                             TipoFalla,
-                            TipoFalla.id_tipo_falla == AplicacionAfectada.tipo_falla_id
+                            TipoFalla.id_tipo_falla == AplicacionAfectada.tipo_falla_id,
                         )
-                        .filter(
-                            TipoFalla.nombre_tipo.ilike(f"%{termino_tipo}%")
-                        )
+                        .filter(TipoFalla.nombre_tipo.ilike(f"%{termino_tipo}%"))
                     )
 
                 if anio:
@@ -171,6 +173,7 @@ class IncidenteService:
 
                 if busqueda:
                     termino = f"%{busqueda}%"
+
                     query = (
                         query.outerjoin(Incidente.aplicaciones_afectadas)
                         .outerjoin(AplicacionAfectada.aplicacion)
@@ -184,7 +187,8 @@ class IncidenteService:
                         )
                     )
 
-                incidentes = query.all()
+                incidentes = query.distinct().all()
+
                 return [_incidente_a_dict(i) for i in incidentes], None
 
         except Exception as e:
@@ -213,7 +217,10 @@ class IncidenteService:
                 if not incidente:
                     return None, "Incidente no encontrado"
 
-                return _incidente_a_dict(incidente, detallado=True), None
+                return _incidente_a_dict(
+                    incidente,
+                    solo_individuales=True,
+                ), None
 
         except Exception as e:
             logger.error(f"Error al obtener incidente {id_incidente}: {e}")
@@ -221,39 +228,41 @@ class IncidenteService:
 
     # ── Crear ─────────────────────────────────────────────────────────────────
     @staticmethod
-    def crear_incidente(
-        datos: Dict[str, Any],
-    ) -> Tuple[Optional[Dict], Optional[str]]:
+    def crear_incidente(datos: Dict[str, Any]) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
                 cav = db.query(Cav).filter(Cav.id_cav == datos.get("cav_id")).first()
+
                 if not cav:
                     return None, f"CAV {datos.get('cav_id')} no encontrado"
 
                 usuario_id = datos.get("usuario_id") or None
+
                 if usuario_id:
                     usuario = db.query(Usuario).filter(
                         Usuario.id_usuario == usuario_id
                     ).first()
+
                     if not usuario:
                         return None, f"Usuario {usuario_id} no encontrado"
 
                 aplicaciones_afectadas = datos.get("aplicaciones_afectadas", [])
+
                 if not aplicaciones_afectadas:
                     return None, "Debe registrar al menos una aplicación afectada"
-                
+
                 combinaciones = set()
 
                 for item in aplicaciones_afectadas:
                     clave = (
                         item.get("aplicacion_id"),
-                        item.get("tipo_falla_id")
+                        item.get("tipo_falla_id"),
                     )
 
                     if clave in combinaciones:
                         return (
                             None,
-                            "No se puede registrar la misma combinación de aplicación y tipo de falla más de una vez."
+                            "No se puede registrar la misma combinación de aplicación y tipo de falla más de una vez.",
                         )
 
                     combinaciones.add(clave)
@@ -285,12 +294,14 @@ class IncidenteService:
                     aplicacion = db.query(Aplicacion).filter(
                         Aplicacion.id_aplicacion == aplicacion_id
                     ).first()
+
                     if not aplicacion:
                         return None, f"Aplicación {aplicacion_id} no encontrada"
 
                     tipo_falla = db.query(TipoFalla).filter(
                         TipoFalla.id_tipo_falla == tipo_falla_id
                     ).first()
+
                     if not tipo_falla:
                         return None, f"Tipo de falla {tipo_falla_id} no encontrado"
 
@@ -313,12 +324,14 @@ class IncidenteService:
 
                 MasivoService.evaluar_masivo_por_incidente(
                     db=db,
-                    incidente_id=nuevo.id_incidente
+                    incidente_id=nuevo.id_incidente,
                 )
 
                 db.commit()
 
-                incidente_respuesta, error = IncidenteService.obtener_incidente(nuevo.id_incidente)
+                incidente_respuesta, error = IncidenteService.obtener_incidente(
+                    nuevo.id_incidente
+                )
 
                 if error:
                     return None, error
@@ -376,15 +389,20 @@ class IncidenteService:
 
                     incidente.cav_id = cav_id
 
-                if "usuario_id" in datos and datos["usuario_id"]:
-                    usuario = db.query(Usuario).filter(
-                        Usuario.id_usuario == datos["usuario_id"]
-                    ).first()
+                if "usuario_id" in datos:
+                    usuario_id = datos.get("usuario_id")
 
-                    if not usuario:
-                        return None, f"Usuario {datos['usuario_id']} no encontrado"
+                    if usuario_id:
+                        usuario = db.query(Usuario).filter(
+                            Usuario.id_usuario == usuario_id
+                        ).first()
 
-                    incidente.usuario_id = datos["usuario_id"]
+                        if not usuario:
+                            return None, f"Usuario {usuario_id} no encontrado"
+
+                        incidente.usuario_id = usuario_id
+                    else:
+                        incidente.usuario_id = None
 
                 if "usuarios_afectados" in datos or "usuarios_totalidad" in datos:
                     nuevos_afectados = datos.get(
@@ -405,31 +423,35 @@ class IncidenteService:
                     incidente.usuarios_afectados = nuevos_afectados
                     incidente.usuarios_totalidad = nueva_totalidad
 
-                if "aplicaciones_afectadas" in datos and datos["aplicaciones_afectadas"] is not None:
+                if (
+                    "aplicaciones_afectadas" in datos
+                    and datos["aplicaciones_afectadas"] is not None
+                ):
                     aplicaciones_afectadas = datos["aplicaciones_afectadas"]
+
+                    if not aplicaciones_afectadas:
+                        return None, "Debe registrar al menos una aplicación afectada"
 
                     combinaciones = set()
 
                     for item in aplicaciones_afectadas:
                         clave = (
                             item.get("aplicacion_id"),
-                            item.get("tipo_falla_id")
+                            item.get("tipo_falla_id"),
                         )
 
                         if clave in combinaciones:
                             return (
                                 None,
-                                "No se puede registrar la misma combinación de aplicación y tipo de falla más de una vez."
+                                "No se puede registrar la misma combinación de aplicación y tipo de falla más de una vez.",
                             )
 
                         combinaciones.add(clave)
 
-                    if not aplicaciones_afectadas:
-                        return None, "Debe registrar al menos una aplicación afectada"
-
                     db.query(AplicacionAfectada).filter(
                         AplicacionAfectada.incidente_id == id_incidente
                     ).delete()
+
                     db.flush()
 
                     for item in aplicaciones_afectadas:
@@ -463,6 +485,13 @@ class IncidenteService:
                                 tipo_falla_id=tipo_falla_id,
                             )
                         )
+
+                    db.flush()
+
+                    MasivoService.evaluar_masivo_por_incidente(
+                        db=db,
+                        incidente_id=id_incidente,
+                    )
 
                 db.commit()
 
@@ -579,12 +608,9 @@ class IncidenteService:
     def resumen() -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
-                base = (
-                    db.query(Incidente)
-                    .filter(
-                        ~Incidente.aplicaciones_afectadas.any(
-                            AplicacionAfectada.masivo_id.isnot(None)
-                        )
+                base = db.query(Incidente).filter(
+                    Incidente.aplicaciones_afectadas.any(
+                        AplicacionAfectada.masivo_id.is_(None)
                     )
                 )
 

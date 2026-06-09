@@ -41,24 +41,44 @@ const crearFiltrosIniciales = () => {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+const crearTextoResumido = (lista = [], limite = 2) => {
+  const elementos = lista.filter(Boolean);
+
+  if (elementos.length <= limite) {
+    return elementos.join(', ');
+  }
+
+  return `${elementos.slice(0, limite).join(', ')} +${
+    elementos.length - limite
+  } más`;
+};
+
 const filtrarIncidentesIndividuales = (lista = []) => {
-  return lista.filter((incidente) => {
+  return lista
+    .map((incidente) => {
+      const aplicacionesIndividuales =
+        incidente.aplicacionesAfectadas?.filter(
+          (app) => !app.masivoId
+        ) || [];
 
-    const tieneMasivoPorAplicacion =
-      incidente.aplicacionesAfectadas?.some(
-        (app) => app.masivoId
-      ) || false;
+      if (aplicacionesIndividuales.length === 0) {
+        return null;
+      }
 
-    const tieneMasivosIds =
-      Array.isArray(incidente.masivosIds) &&
-      incidente.masivosIds.length > 0;
-
-    return (
-      !incidente.perteneceAMasivo &&
-      !tieneMasivoPorAplicacion &&
-      !tieneMasivosIds
-    );
-  });
+      return {
+        ...incidente,
+        aplicacionesAfectadas: aplicacionesIndividuales,
+        aplicacionesTexto: crearTextoResumido(
+          aplicacionesIndividuales.map((a) => a.aplicacionNombre),
+          2
+        ),
+        tiposFallaTexto: crearTextoResumido(
+          aplicacionesIndividuales.map((a) => a.tipoFallaNombre),
+          2
+        ),
+      };
+    })
+    .filter(Boolean);
 };
 
 // ── Componente ───────────────────────────────────────────────────────────────

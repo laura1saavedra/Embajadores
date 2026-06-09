@@ -38,13 +38,20 @@ const normalizarAplicacion = (a) => ({
 const normalizarAplicacionesAfectadas = (raw) => {
   if (!Array.isArray(raw)) return [];
 
-  return raw.map((item) => ({
-    idAplicacionesAfectados: String(item.id_aplicaciones_afectados || ''),
-    aplicacionId: String(item.aplicacion_id || ''),
-    aplicacionNombre: item.nombre_aplicacion || '',
-    tipoFallaId: String(item.tipo_falla_id || ''),
-    tipoFallaNombre: item.nombre_tipo || '',
-  }));
+  return raw.map((item) => {
+    const masivoId = item.masivo_id ?? null;
+
+    return {
+      idAplicacionesAfectados: String(item.id_aplicaciones_afectados || ''),
+      aplicacionId: String(item.aplicacion_id || ''),
+      aplicacionNombre: item.nombre_aplicacion || '',
+      tipoFallaId: String(item.tipo_falla_id || ''),
+      tipoFallaNombre: item.nombre_tipo || '',
+
+      masivoId,
+      perteneceAMasivo: masivoId !== null,
+    };
+  });
 };
 
 const crearTextoResumido = (lista = [], limite = 2) => {
@@ -64,11 +71,19 @@ const normalizarIncidente = (i) => {
     i.aplicaciones_afectadas
   );
 
-  const masivosIds = Array.isArray(i.masivos_ids)
+  const masivosIdsDesdeAplicaciones = aplicacionesAfectadas
+    .map((app) => app.masivoId)
+    .filter((id) => id !== null && id !== undefined);
+
+  const masivosIdsBackend = Array.isArray(i.masivos_ids)
     ? i.masivos_ids
     : i.masivo_id
       ? [i.masivo_id]
       : [];
+
+  const masivosIds = [
+    ...new Set([...masivosIdsBackend, ...masivosIdsDesdeAplicaciones]),
+  ];
 
   return {
     idIncidente: i.id_incidente,
@@ -85,8 +100,10 @@ const normalizarIncidente = (i) => {
 
     masivoId: masivosIds.length > 0 ? masivosIds[0] : null,
     masivosIds,
+
     perteneceAMasivo:
       Boolean(i.pertenece_a_masivo) || masivosIds.length > 0,
+
     mensaje: i.mensaje || '',
 
     usuariosAfectados: i.usuarios_afectados ?? 0,
