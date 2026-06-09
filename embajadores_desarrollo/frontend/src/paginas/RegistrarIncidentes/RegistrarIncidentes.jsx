@@ -40,8 +40,7 @@ function RegistrarIncidente() {
   const [mensajeError, setMensajeError] = useState('');
 
   const [idRegistrado, setIdRegistrado] = useState(null);
-  const [masivoRegistradoId, setMasivoRegistradoId] = useState(null);
-  const [perteneceAMasivo, setPerteneceAMasivo] = useState(false);
+  const [tipoRegistro, setTipoRegistro] = useState('');
 
   const [filasAplicaciones, setFilasAplicaciones] = useState([
     crearFila(),
@@ -141,8 +140,7 @@ function RegistrarIncidente() {
     setMensajeExito('');
     setMensajeError('');
     setIdRegistrado(null);
-    setMasivoRegistradoId(null);
-    setPerteneceAMasivo(false);
+    setTipoRegistro('');
   };
 
   // ── Submit ─────────────────────────────────────────────────────────────────
@@ -218,28 +216,13 @@ function RegistrarIncidente() {
         filasAplicaciones: filasValidas,
       });
 
-      const incidentePerteneceAMasivo =
-        creado.perteneceAMasivo || Boolean(creado.masivoId);
-
       setFormulario(ESTADO_INICIAL);
       setCavs([]);
       setFilasAplicaciones([crearFila()]);
 
       setIdRegistrado(creado.idIncidente);
-      setMasivoRegistradoId(creado.masivoId || null);
-      setPerteneceAMasivo(incidentePerteneceAMasivo);
-
-      if (incidentePerteneceAMasivo) {
-        setMensajeExito(
-          creado.mensaje ||
-            `Incidente #${creado.idIncidente} registrado correctamente. Este incidente pertenece al incidente masivo #${creado.masivoId}.`
-        );
-      } else {
-        setMensajeExito(
-          creado.mensaje ||
-            `Incidente #${creado.idIncidente} registrado correctamente en estado "abierto".`
-        );
-      }
+      setTipoRegistro(creado.tipoRegistro);
+      setMensajeExito(creado.mensaje);
     } catch (err) {
       setMensajeError(
         err.message || 'No fue posible registrar el incidente.'
@@ -297,37 +280,19 @@ function RegistrarIncidente() {
             {mensajeExito}
 
             <div className="ri__enlaces-exito">
-              {perteneceAMasivo && masivoRegistradoId ? (
-                <>
-                  <Link to="/masivos" className="ri__enlace">
-                    Ir a resumen →
-                  </Link>
+              {(tipoRegistro === 'historial' || tipoRegistro === 'mixto') && (
+                <Link
+                  to="/historial-incidentes"
+                  className="ri__enlace"
+                >
+                  Ir a historial →
+                </Link>
+              )}
 
-                  <Link
-                    to={`/detalle-masivo/${masivoRegistradoId}`}
-                    className="ri__enlace"
-                  >
-                    Ver incidente masivo #{masivoRegistradoId} →
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/historial-incidentes"
-                    className="ri__enlace"
-                  >
-                    Ver historial →
-                  </Link>
-
-                  {idRegistrado && (
-                    <Link
-                      to={`/detalle-incidente/${idRegistrado}`}
-                      className="ri__enlace"
-                    >
-                      Ver incidente #{idRegistrado} →
-                    </Link>
-                  )}
-                </>
+              {(tipoRegistro === 'masivo' || tipoRegistro === 'mixto') && (
+                <Link to="/masivos" className="ri__enlace">
+                  Ir a resumen →
+                </Link>
               )}
             </div>
           </div>

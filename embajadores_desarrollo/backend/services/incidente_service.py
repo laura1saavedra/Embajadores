@@ -37,6 +37,40 @@ def _obtener_masivos_ids(i: Incidente) -> List[int]:
     return masivos_ids
 
 
+def _obtener_tipo_registro(
+    tiene_individuales: bool,
+    tiene_masivas: bool,
+) -> str:
+    if tiene_individuales and tiene_masivas:
+        return "mixto"
+
+    if tiene_masivas:
+        return "masivo"
+
+    return "historial"
+
+
+def _obtener_mensaje_registro(
+    id_incidente: int,
+    tipo_registro: str,
+) -> str:
+    if tipo_registro == "mixto":
+        return (
+            f"Incidente #{id_incidente} registrado correctamente. "
+            "Este incidente quedó asociado tanto al historial como al resumen de incidentes masivos."
+        )
+
+    if tipo_registro == "masivo":
+        return (
+            f"Incidente #{id_incidente} registrado correctamente. "
+            "Este incidente quedó asociado al resumen de incidentes masivos."
+        )
+
+    return (
+        f"Incidente #{id_incidente} registrado correctamente en historial."
+    )
+
+
 def _incidente_a_dict(
     i: Incidente,
     solo_individuales: bool = False,
@@ -44,15 +78,29 @@ def _incidente_a_dict(
     cav = i.cav
     ciudad = cav.ciudad if cav else None
     usuario = i.usuario
+
+    todas_las_aplicaciones = i.aplicaciones_afectadas or []
+
+    aplicaciones_individuales = [
+        aa for aa in todas_las_aplicaciones
+        if aa.masivo_id is None
+    ]
+
+    aplicaciones_masivas = [
+        aa for aa in todas_las_aplicaciones
+        if aa.masivo_id is not None
+    ]
+
+    aplicaciones_para_respuesta = (
+        aplicaciones_individuales
+        if solo_individuales
+        else todas_las_aplicaciones
+    )
+
+    tiene_individuales = len(aplicaciones_individuales) > 0
+    tiene_masivas = len(aplicaciones_masivas) > 0
+    tipo_registro = _obtener_tipo_registro(tiene_individuales, tiene_masivas)
     masivos_ids = _obtener_masivos_ids(i)
-
-    aplicaciones_afectadas = i.aplicaciones_afectadas or []
-
-    if solo_individuales:
-        aplicaciones_afectadas = [
-            aa for aa in aplicaciones_afectadas
-            if aa.masivo_id is None
-        ]
 
     return {
         "id_incidente": i.id_incidente,
@@ -65,20 +113,29 @@ def _incidente_a_dict(
         "usuario_correo": usuario.correo if usuario else None,
         "masivos_ids": masivos_ids,
         "pertenece_a_masivo": len(masivos_ids) > 0,
+        "tiene_aplicaciones_individuales": tiene_individuales,
+        "tiene_aplicaciones_masivas": tiene_masivas,
+        "tipo_registro": tipo_registro,
         "usuarios_afectados": i.usuarios_afectados,
         "usuarios_totalidad": i.usuarios_totalidad,
         "estado": i.estado,
-        "fecha_hora_reporte": i.fecha_hora_reporte.isoformat() if i.fecha_hora_reporte else None,
+        "fecha_hora_reporte": i.fecha_hora_reporte.isoformat()
+        if i.fecha_hora_reporte
+        else None,
         "aplicaciones_afectadas": [
             {
                 "id_aplicaciones_afectados": aa.id_aplicaciones_afectados,
                 "aplicacion_id": aa.aplicacion_id,
-                "nombre_aplicacion": aa.aplicacion.nombre_aplicacion if aa.aplicacion else None,
+                "nombre_aplicacion": aa.aplicacion.nombre_aplicacion
+                if aa.aplicacion
+                else None,
                 "tipo_falla_id": aa.tipo_falla_id,
-                "nombre_tipo": aa.tipo_falla.nombre_tipo if aa.tipo_falla else None,
+                "nombre_tipo": aa.tipo_falla.nombre_tipo
+                if aa.tipo_falla
+                else None,
                 "masivo_id": aa.masivo_id,
             }
-            for aa in aplicaciones_afectadas
+            for aa in aplicaciones_para_respuesta
         ],
     }
 
@@ -107,6 +164,22 @@ def _registrar_historial(
     db.add(entrada)
 
 
+def _consultar_incidente_completo(db, id_incidente: int):
+    return (
+        db.query(Incidente)
+        .options(
+            joinedload(Incidente.cav).joinedload(Cav.ciudad),
+            joinedload(Incidente.usuario),
+            joinedload(Incidente.aplicaciones_afectadas)
+            .joinedload(AplicacionAfectada.aplicacion),
+            joinedload(Incidente.aplicaciones_afectadas)
+            .joinedload(AplicacionAfectada.tipo_falla),
+        )
+        .filter(Incidente.id_incidente == id_incidente)
+        .first()
+    )
+
+
 # ── Operaciones CRUD ──────────────────────────────────────────────────────────
 
 class IncidenteService:
@@ -131,9 +204,9 @@ class IncidenteService:
                         joinedload(Incidente.cav).joinedload(Cav.ciudad),
                         joinedload(Incidente.usuario),
                         joinedload(Incidente.aplicaciones_afectadas)
-                            .joinedload(AplicacionAfectada.aplicacion),
+                        .joinedload(AplicacionAfectada.aplicacion),
                         joinedload(Incidente.aplicaciones_afectadas)
-                            .joinedload(AplicacionAfectada.tipo_falla),
+                        .joinedload(AplicacionAfectada.tipo_falla),
                     )
                     .order_by(Incidente.fecha_hora_reporte.desc())
                 )
@@ -200,19 +273,7 @@ class IncidenteService:
     def obtener_incidente(id_incidente: int) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
-                incidente = (
-                    db.query(Incidente)
-                    .options(
-                        joinedload(Incidente.cav).joinedload(Cav.ciudad),
-                        joinedload(Incidente.usuario),
-                        joinedload(Incidente.aplicaciones_afectadas)
-                            .joinedload(AplicacionAfectada.aplicacion),
-                        joinedload(Incidente.aplicaciones_afectadas)
-                            .joinedload(AplicacionAfectada.tipo_falla),
-                    )
-                    .filter(Incidente.id_incidente == id_incidente)
-                    .first()
-                )
+                incidente = _consultar_incidente_completo(db, id_incidente)
 
                 if not incidente:
                     return None, "Incidente no encontrado"
@@ -287,6 +348,8 @@ class IncidenteService:
                 db.add(nuevo)
                 db.flush()
 
+                id_incidente_creado = nuevo.id_incidente
+
                 for item in aplicaciones_afectadas:
                     aplicacion_id = item.get("aplicacion_id")
                     tipo_falla_id = item.get("tipo_falla_id")
@@ -307,7 +370,7 @@ class IncidenteService:
 
                     db.add(
                         AplicacionAfectada(
-                            incidente_id=nuevo.id_incidente,
+                            incidente_id=id_incidente_creado,
                             aplicacion_id=aplicacion_id,
                             tipo_falla_id=tipo_falla_id,
                         )
@@ -315,7 +378,7 @@ class IncidenteService:
 
                 _registrar_historial(
                     db,
-                    nuevo.id_incidente,
+                    id_incidente_creado,
                     estado_anterior=None,
                     estado_nuevo="abierto",
                 )
@@ -324,29 +387,34 @@ class IncidenteService:
 
                 MasivoService.evaluar_masivo_por_incidente(
                     db=db,
-                    incidente_id=nuevo.id_incidente,
+                    incidente_id=id_incidente_creado,
                 )
 
                 db.commit()
 
-                incidente_respuesta, error = IncidenteService.obtener_incidente(
-                    nuevo.id_incidente
+            with get_db_session() as db_respuesta:
+                incidente_creado = _consultar_incidente_completo(
+                    db_respuesta,
+                    id_incidente_creado,
                 )
 
-                if error:
-                    return None, error
+                if not incidente_creado:
+                    return None, "Incidente no encontrado después de crearlo"
 
-                masivos_ids = incidente_respuesta.get("masivos_ids", [])
+                incidente_respuesta = _incidente_a_dict(
+                    incidente_creado,
+                    solo_individuales=False,
+                )
 
-                if masivos_ids:
-                    incidente_respuesta["mensaje"] = (
-                        "Incidente registrado y asociado al/los incidente(s) masivo(s): "
-                        f"{', '.join('#' + str(mid) for mid in masivos_ids)}."
-                    )
-                    incidente_respuesta["pertenece_a_masivo"] = True
-                else:
-                    incidente_respuesta["mensaje"] = "Incidente registrado correctamente."
-                    incidente_respuesta["pertenece_a_masivo"] = False
+                tipo_registro = incidente_respuesta.get(
+                    "tipo_registro",
+                    "historial",
+                )
+
+                incidente_respuesta["mensaje"] = _obtener_mensaje_registro(
+                    incidente_respuesta["id_incidente"],
+                    tipo_registro,
+                )
 
                 return incidente_respuesta, None
 

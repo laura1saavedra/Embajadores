@@ -104,6 +104,14 @@ const normalizarIncidente = (i) => {
     perteneceAMasivo:
       Boolean(i.pertenece_a_masivo) || masivosIds.length > 0,
 
+    tieneAplicacionesIndividuales:
+      Boolean(i.tiene_aplicaciones_individuales),
+
+    tieneAplicacionesMasivas:
+      Boolean(i.tiene_aplicaciones_masivas),
+
+    tipoRegistro: i.tipo_registro || '',
+
     mensaje: i.mensaje || '',
 
     usuariosAfectados: i.usuarios_afectados ?? 0,
