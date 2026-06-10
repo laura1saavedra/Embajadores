@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import configuracionServicio from '../../../../services/configuracionServicio';
 
@@ -37,6 +37,17 @@ function CiudadesCavs({ onVolver }) {
   const [mensajeError, setMensajeError] = useState('');
   const [mensajeExito, setMensajeExito] = useState('');
 
+  const inicioRef = useRef(null);
+
+  const subirAlInicio = () => {
+    setTimeout(() => {
+      inicioRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 100);
+  };
+
   useEffect(() => {
     cargarDatos();
   }, []);
@@ -53,6 +64,7 @@ function CiudadesCavs({ onVolver }) {
       setMensajeError(
         error.message || 'No fue posible cargar ciudades y CAVs.'
       );
+      subirAlInicio();
     } finally {
       setCargando(false);
     }
@@ -109,6 +121,7 @@ function CiudadesCavs({ onVolver }) {
 
     if (!nombre) {
       setMensajeError('El nombre de la ciudad es obligatorio.');
+      subirAlInicio();
       return;
     }
 
@@ -123,9 +136,11 @@ function CiudadesCavs({ onVolver }) {
         );
 
         setMensajeExito('Ciudad actualizada correctamente.');
+        subirAlInicio();
       } else {
         await configuracionServicio.crearCiudad(nombre);
         setMensajeExito('Ciudad creada correctamente.');
+        subirAlInicio();
       }
 
       setFormCiudad(FORM_CIUDAD_INICIAL);
@@ -135,6 +150,7 @@ function CiudadesCavs({ onVolver }) {
       await cargarDatos();
     } catch (error) {
       setMensajeError(error.message || 'No fue posible guardar la ciudad.');
+      subirAlInicio();
     } finally {
       setGuardando(false);
     }
@@ -147,6 +163,7 @@ function CiudadesCavs({ onVolver }) {
 
     if (!nombre || !formCav.ciudadId) {
       setMensajeError('Completa el nombre del CAV y selecciona una ciudad.');
+      subirAlInicio();
       return;
     }
 
@@ -162,9 +179,11 @@ function CiudadesCavs({ onVolver }) {
         );
 
         setMensajeExito('CAV actualizado correctamente.');
+        subirAlInicio();
       } else {
         await configuracionServicio.crearCav(nombre, formCav.ciudadId);
         setMensajeExito('CAV creado correctamente.');
+        subirAlInicio();
       }
 
       setFormCav(FORM_CAV_INICIAL);
@@ -174,6 +193,7 @@ function CiudadesCavs({ onVolver }) {
       await cargarDatos();
     } catch (error) {
       setMensajeError(error.message || 'No fue posible guardar el CAV.');
+      subirAlInicio();
     } finally {
       setGuardando(false);
     }
@@ -263,8 +283,10 @@ function CiudadesCavs({ onVolver }) {
       await cargarDatos();
 
       setMensajeExito('Ciudad eliminada correctamente.');
+      subirAlInicio();
     } catch (error) {
       setMensajeError(error.message || 'No fue posible eliminar la ciudad.');
+      subirAlInicio();
     } finally {
       setGuardando(false);
     }
@@ -283,8 +305,10 @@ function CiudadesCavs({ onVolver }) {
       await cargarDatos();
 
       setMensajeExito('CAV eliminado correctamente.');
+      subirAlInicio();
     } catch (error) {
       setMensajeError(error.message || 'No fue posible eliminar el CAV.');
+      subirAlInicio();
     } finally {
       setGuardando(false);
     }
@@ -301,7 +325,7 @@ function CiudadesCavs({ onVolver }) {
   }
 
   return (
-    <section className="ciudades-cavs">
+    <section className="ciudades-cavs" ref={inicioRef}>
       <div className="ciudades-cavs__encabezado">
         <button
           type="button"
