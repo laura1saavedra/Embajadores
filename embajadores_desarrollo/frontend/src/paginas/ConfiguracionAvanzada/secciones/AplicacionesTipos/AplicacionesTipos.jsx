@@ -139,6 +139,19 @@ function AplicacionesTipos({ onVolver }) {
     normalizarParaComparar(formTipoFalla.nombre) ===
       normalizarParaComparar(editandoTipoFalla.nombreTipo);
 
+  const mostrarLimpiarAplicacion = formAplicacion.nombre.trim().length > 0;
+  const mostrarLimpiarTipoFalla = formTipoFalla.nombre.trim().length > 0;
+
+  const limpiarFormularioAplicacion = () => {
+    setFormAplicacion(FORM_INICIAL);
+    limpiarMensajes();
+  };
+
+  const limpiarFormularioTipoFalla = () => {
+    setFormTipoFalla(FORM_INICIAL);
+    limpiarMensajes();
+  };
+
   const guardarAplicacion = async (evento) => {
     evento.preventDefault();
 
@@ -698,6 +711,17 @@ function AplicacionesTipos({ onVolver }) {
                         : 'Guardar'}
                   </button>
 
+                  {mostrarLimpiarAplicacion && !editandoAplicacion && (
+                    <button
+                      type="button"
+                      className="aplicaciones-tipos__boton-secundario"
+                      onClick={limpiarFormularioAplicacion}
+                      disabled={guardando}
+                    >
+                      Limpiar
+                    </button>
+                  )}
+
                   {editandoAplicacion && (
                     <button
                       type="button"
@@ -790,6 +814,17 @@ function AplicacionesTipos({ onVolver }) {
                           : 'Guardar cambios'
                         : 'Guardar'}
                   </button>
+
+                  {mostrarLimpiarTipoFalla && !editandoTipoFalla && (
+                    <button
+                      type="button"
+                      className="aplicaciones-tipos__boton-secundario"
+                      onClick={limpiarFormularioTipoFalla}
+                      disabled={guardando}
+                    >
+                      Limpiar
+                    </button>
+                  )}
 
                   {editandoTipoFalla && (
                     <button
