@@ -728,10 +728,26 @@ function CiudadesCavs({ onVolver }) {
                 <>
                   <h2>Eliminar ciudad</h2>
 
-                  <p>
-                    ¿Estás seguro de eliminar la ciudad{' '}
-                    <strong>{eliminandoCiudad.nombreCiudad}</strong>?
-                  </p>
+                  {eliminandoCiudad.cavs?.length === 1 ? (
+                    <p>
+                      La ciudad <strong>{eliminandoCiudad.nombreCiudad}</strong> tiene un CAV
+                      asociado. Si eliminas esta ciudad, también se eliminará el CAV{' '}
+                      <strong>{eliminandoCiudad.cavs[0].nombreCav}</strong>, ya que la ciudad no
+                      puede quedar sin CAVs asociados. ¿Estás seguro de continuar?
+                    </p>
+                  ) : eliminandoCiudad.cavs?.length > 1 ? (
+                    <p>
+                      La ciudad <strong>{eliminandoCiudad.nombreCiudad}</strong> tiene{' '}
+                      <strong>{eliminandoCiudad.cavs.length}</strong> CAVs asociados. Si eliminas
+                      esta ciudad, también se eliminarán sus CAVs asociados. ¿Estás seguro de
+                      continuar?
+                    </p>
+                  ) : (
+                    <p>
+                      ¿Estás seguro de eliminar la ciudad{' '}
+                      <strong>{eliminandoCiudad.nombreCiudad}</strong>?
+                    </p>
+                  )}
 
                   <div className="ciudades-cavs__acciones-form">
                     <button

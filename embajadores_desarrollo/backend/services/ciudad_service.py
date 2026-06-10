@@ -11,7 +11,7 @@ from typing import Optional, List, Tuple, Dict, Any
 from sqlalchemy.orm import joinedload
 
 from db import get_db_session
-from models import Ciudad, Cav
+from models import Ciudad, Cav, Incidente
 
 
 logger = logging.getLogger(__name__)
@@ -254,9 +254,24 @@ class CiudadService:
 
                 if not ciudad:
                     return None, "Ciudad no encontrada"
+                
+                cavs_ids = [cav.id_cav for cav in ciudad.cavs]
 
-                if ciudad.cavs:
-                    return None, "No se puede eliminar la ciudad porque tiene CAVs asociados"
+                if cavs_ids:
+                    tiene_incidentes = (
+                        db.query(Incidente)
+                        .filter(Incidente.cav_id.in_(cavs_ids))
+                        .first()
+                        is not None
+                    )
+
+                    if tiene_incidentes:
+                        return None, (
+                            "No se puede eliminar la ciudad porque uno o más CAVs tienen incidentes asociados"
+                        )
+
+                for cav in list(ciudad.cavs):
+                    db.delete(cav)
 
                 db.delete(ciudad)
                 db.commit()
