@@ -347,19 +347,22 @@ function CiudadesCavs({ onVolver }) {
   };
 
   const prepararEliminarCav = (cav, ciudad) => {
-    limpiarMensajes();
+     const ciudadDelCav = ciudades.find(
+      (ciudad) => Number(ciudad.idCiudad) === Number(cav.ciudadId)
+    );
 
-    setEliminandoCav({
-      ...cav,
-      ciudadId: ciudad.idCiudad,
-      ciudadNombre: ciudad.nombreCiudad,
-    });
+    if (ciudadDelCav?.cavs?.length === 1) {
+      setEditandoCiudad(null);
+      setEditandoCav(null);
+      setEliminandoCav(null);
+      setEliminandoCiudad(ciudadDelCav);
+      return;
+    }
 
-    setEliminandoCiudad(null);
-    setEditandoCiudad(null);
     setEditandoCav(null);
-
-    setFormCav(FORM_CAV_INICIAL);
+    setEditandoCiudad(null);
+    setEliminandoCiudad(null);
+    setEliminandoCav(cav);
   };
 
   const cancelarEdicionCiudad = () => {

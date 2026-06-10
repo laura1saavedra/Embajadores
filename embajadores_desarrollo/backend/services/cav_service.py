@@ -266,6 +266,18 @@ class CavService:
                 if not cav:
                     return None, "CAV no encontrado"
 
+                cantidad_cavs_ciudad = (
+                    db.query(Cav)
+                    .filter(Cav.ciudad_id == cav.ciudad_id)
+                    .count()
+                )
+
+                if cantidad_cavs_ciudad <= 1:
+                    return None, (
+                        "No se puede eliminar el CAV porque la ciudad quedaría sin CAVs asociados. "
+                        "Elimina la ciudad junto con su CAV asociado."
+                    )
+
                 tiene_incidentes = (
                     db.query(Incidente)
                     .filter(
