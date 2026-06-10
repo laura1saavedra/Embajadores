@@ -174,6 +174,18 @@ function CiudadesCavs({ onVolver }) {
           return;
         }
 
+        const cavsValidos = formCiudad.cavs
+          .map((cav) => cav.trim())
+          .filter(Boolean);
+
+        if (!editandoCiudad && cavsValidos.length === 0) {
+          setMensajeError(
+            'Debe registrar al menos un CAV para crear la ciudad.'
+          );
+          subirAlInicio();
+          return;
+        }
+
         await configuracionServicio.crearCiudadCompleta(nombre, cavsLimpios);
         setMensajeExito('Ciudad y CAVs creados correctamente.');
         subirAlInicio();

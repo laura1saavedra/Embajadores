@@ -102,7 +102,7 @@ def crear_ciudad(body: CiudadCrear):
 @ciudades_router.post("/completa", status_code=201)
 def crear_ciudad_completa(body: CiudadCompletaCrear):
 
-    nombre = body.nombre_ciudad.strip()
+    nombre = body.nombre_ciudad.strip()    
 
     if not nombre:
         return JSONResponse(
@@ -111,10 +111,24 @@ def crear_ciudad_completa(body: CiudadCompletaCrear):
                 "error": "El nombre de la ciudad es obligatorio"
             }
         )
+    
+    cavs_validos = [
+        cav.strip()
+        for cav in body.cavs
+        if cav.strip()
+    ]
+
+    if len(cavs_validos) == 0:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "Debe registrar al menos un CAV para crear la ciudad"
+            }
+        )
 
     datos, error = CiudadService.crear_ciudad_completa(
         nombre_ciudad=nombre,
-        cavs=body.cavs
+        cavs=cavs_validos
     )
 
     if error:
