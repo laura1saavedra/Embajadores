@@ -7,6 +7,7 @@ import './CiudadesCavs.css';
 const FORM_CIUDAD_INICIAL = {
   nombre: '',
   cavs: [''],
+  nuevosCavs: [''],
 };
 
 const FORM_CAV_INICIAL = {
@@ -130,15 +131,26 @@ function CiudadesCavs({ onVolver }) {
       setGuardando(true);
       limpiarMensajes();
 
-      if (editandoCiudad) {
-        await configuracionServicio.actualizarCiudad(
-          editandoCiudad.idCiudad,
-          nombre
-        );
+     if (editandoCiudad) {
+      await configuracionServicio.actualizarCiudad(
+        editandoCiudad.idCiudad,
+        nombre
+      );
 
-        setMensajeExito('Ciudad actualizada correctamente.');
-        subirAlInicio();
-      } else {
+      const nuevosCavsLimpios = formCiudad.nuevosCavs
+        .map((cav) => cav.trim())
+        .filter(Boolean);
+
+      for (const nuevoCav of nuevosCavsLimpios) {
+        await configuracionServicio.crearCav(
+          nuevoCav,
+          editandoCiudad.idCiudad
+        );
+      }
+
+      setMensajeExito('Ciudad y CAVs actualizados correctamente.');
+      subirAlInicio();
+      }  else {
         const cavsLimpios = formCiudad.cavs
           .map((cav) => cav.trim())
           .filter(Boolean);
@@ -249,6 +261,32 @@ function CiudadesCavs({ onVolver }) {
     }));
   };
 
+  const cambiarNuevoCavCiudad = (index, valor) => {
+    setFormCiudad((prev) => ({
+      ...prev,
+      nuevosCavs: prev.nuevosCavs.map((cav, posicion) =>
+        posicion === index ? valor : cav
+      ),
+    }));
+  };
+
+  const agregarNuevoCavCiudad = () => {
+    setFormCiudad((prev) => ({
+      ...prev,
+      nuevosCavs: [...prev.nuevosCavs, ''],
+    }));
+  };
+
+  const eliminarNuevoCavCiudad = (index) => {
+    setFormCiudad((prev) => ({
+      ...prev,
+      nuevosCavs:
+        prev.nuevosCavs.length > 1
+          ? prev.nuevosCavs.filter((_, posicion) => posicion !== index)
+          : [''],
+    }));
+  };
+
   const prepararEditarCiudad = (ciudad) => {
     limpiarMensajes();
 
@@ -260,6 +298,9 @@ function CiudadesCavs({ onVolver }) {
     setFormCiudad({
       nombre: ciudad.nombreCiudad,
       cavs: [''],
+      cavSeleccionadoId: ciudad.cavs?.[0]?.idCav || '',
+      cavSeleccionadoNombre: ciudad.cavs?.[0]?.nombreCav || '',
+      nuevosCavs: [''],
     });
   };
 
@@ -642,6 +683,45 @@ function CiudadesCavs({ onVolver }) {
                   }))
                   }
                 />
+
+                {editandoCiudad && (
+                  <div className="ciudades-cavs__editar-cavs">
+                    <div className="ciudades-cavs__cavs-header">
+                      <label>Nuevos CAVs</label>
+
+                      <button
+                        type="button"
+                        className="ciudades-cavs__boton-agregar"
+                        onClick={agregarNuevoCavCiudad}
+                        disabled={guardando}
+                      >
+                        + Agregar CAV
+                      </button>
+                    </div>
+
+                    {formCiudad.nuevosCavs.map((cav, index) => (
+                      <div key={index} className="ciudades-cavs__cav-campo">
+                        <input
+                          type="text"
+                          value={cav}
+                          placeholder={`Nuevo CAV ${index + 1}`}
+                          onChange={(evento) =>
+                            cambiarNuevoCavCiudad(index, evento.target.value)
+                          }
+                        />
+
+                        <button
+                          type="button"
+                          className="ciudades-cavs__boton-quitar"
+                          onClick={() => eliminarNuevoCavCiudad(index)}
+                          disabled={guardando}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {!editandoCiudad && (
                   <div className="ciudades-cavs__cavs-formulario">
