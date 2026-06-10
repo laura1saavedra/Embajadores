@@ -15,7 +15,7 @@ const FORM_CAV_INICIAL = {
   ciudadId: '',
 };
 
-const ELEMENTOS_POR_PAGINA = 8;
+const ELEMENTOS_POR_PAGINA = 5;
 
 function CiudadesCavs({ onVolver }) {
   const [ciudades, setCiudades] = useState([]);
@@ -625,254 +625,74 @@ function CiudadesCavs({ onVolver }) {
         </div>
 
         <aside className="ciudades-cavs__sidebar">
-          <form
-            onSubmit={guardarCiudad}
-            className={`ciudades-cavs__form ${
-              editandoCiudad ? 'ciudades-cavs__form--editando' : ''
-            } ${eliminandoCiudad ? 'ciudades-cavs__form--eliminar' : ''}`}
-          >
-            {eliminandoCiudad ? (
-              <>
-                <h2>Eliminar ciudad</h2>
+          {editandoCav || eliminandoCav ? (
+            <form
+              onSubmit={guardarCav}
+              className={`ciudades-cavs__form ${
+                editandoCav ? 'ciudades-cavs__form--editando' : ''
+              } ${eliminandoCav ? 'ciudades-cavs__form--eliminar' : ''}`}
+            >
+              {eliminandoCav ? (
+                <>
+                  <h2>Eliminar CAV</h2>
 
-                <p>
-                  ¿Estás seguro de eliminar la ciudad{' '}
-                  <strong>{eliminandoCiudad.nombreCiudad}</strong>?
-                </p>
+                  <p>
+                    ¿Estás seguro de eliminar el CAV{' '}
+                    <strong>{eliminandoCav.nombreCav}</strong>?
+                  </p>
 
-                <div className="ciudades-cavs__acciones-form">
-                  <button
-                    type="button"
-                    className="ciudades-cavs__boton-eliminar"
-                    onClick={confirmarEliminarCiudad}
-                    disabled={guardando}
-                  >
-                    {guardando ? 'Eliminando...' : 'Eliminar'}
-                  </button>
+                  <div className="ciudades-cavs__acciones-form">
+                    <button
+                      type="button"
+                      className="ciudades-cavs__boton-eliminar"
+                      onClick={confirmarEliminarCav}
+                      disabled={guardando}
+                    >
+                      {guardando ? 'Eliminando...' : 'Eliminar'}
+                    </button>
 
-                  <button
-                    type="button"
-                    className="ciudades-cavs__boton-secundario"
-                    onClick={() => setEliminandoCiudad(null)}
-                    disabled={guardando}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2>{editandoCiudad ? 'Editar ciudad' : 'Crear ciudad'}</h2>
-
-                <p>
-                  Registra o actualiza las ciudades disponibles para los
-                  incidentes.
-                </p>
-
-                <label htmlFor="nombreCiudad">Nombre de la ciudad</label>
-
-                <input
-                  id="nombreCiudad"
-                  type="text"
-                  value={formCiudad.nombre}
-                  placeholder="Ej: Bogotá"
-                  onChange={(evento) =>
-                    setFormCiudad((prev) => ({
-                    ...prev,
-                    nombre: evento.target.value,
-                  }))
-                  }
-                />
-
-                {editandoCiudad && (
-                  <div className="ciudades-cavs__editar-cavs">
-                    <div className="ciudades-cavs__cavs-header">
-                      <label>Nuevos CAVs</label>
-
-                      <button
-                        type="button"
-                        className="ciudades-cavs__boton-agregar"
-                        onClick={agregarNuevoCavCiudad}
-                        disabled={guardando}
-                      >
-                        + Agregar CAV
-                      </button>
-                    </div>
-
-                    {formCiudad.nuevosCavs.map((cav, index) => (
-                      <div key={index} className="ciudades-cavs__cav-campo">
-                        <input
-                          type="text"
-                          value={cav}
-                          placeholder={`Nuevo CAV ${index + 1}`}
-                          onChange={(evento) =>
-                            cambiarNuevoCavCiudad(index, evento.target.value)
-                          }
-                        />
-
-                        <button
-                          type="button"
-                          className="ciudades-cavs__boton-quitar"
-                          onClick={() => eliminarNuevoCavCiudad(index)}
-                          disabled={guardando}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {!editandoCiudad && (
-                  <div className="ciudades-cavs__cavs-formulario">
-                    <div className="ciudades-cavs__cavs-header">
-                      <label>CAVs asociados</label>
-
-                      <button
-                        type="button"
-                        className="ciudades-cavs__boton-agregar"
-                        onClick={agregarCavCiudad}
-                        disabled={guardando}
-                      >
-                        + Agregar CAV
-                      </button>
-                    </div>
-
-                    {formCiudad.cavs.map((cav, index) => (
-                      <div key={index} className="ciudades-cavs__cav-campo">
-                        <input
-                          type="text"
-                          value={cav}
-                          placeholder={`Ej: CAV ${index + 1}`}
-                          onChange={(evento) =>
-                            cambiarCavCiudad(index, evento.target.value)
-                          }
-                        />
-
-                        <button
-                          type="button"
-                          className="ciudades-cavs__boton-quitar"
-                          onClick={() => eliminarCavCiudad(index)}
-                          disabled={guardando}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="ciudades-cavs__acciones-form">
-                  <button type="submit" disabled={guardando}>
-                    {guardando
-                      ? 'Guardando...'
-                      : editandoCiudad
-                        ? 'Guardar cambios'
-                        : 'Guardar'}
-                  </button>
-
-                  {editandoCiudad && (
                     <button
                       type="button"
                       className="ciudades-cavs__boton-secundario"
-                      onClick={cancelarEdicionCiudad}
+                      onClick={() => setEliminandoCav(null)}
                       disabled={guardando}
                     >
                       Cancelar
                     </button>
-                  )}
-                </div>
-              </>
-            )}
-          </form>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2>Editar CAV</h2>
 
-          <form
-            onSubmit={guardarCav}
-            className={`ciudades-cavs__form ${
-              editandoCav ? 'ciudades-cavs__form--editando' : ''
-            } ${eliminandoCav ? 'ciudades-cavs__form--eliminar' : ''}`}
-          >
-            {eliminandoCav ? (
-              <>
-                <h2>Eliminar CAV</h2>
+                  <p>Actualiza el nombre del CAV seleccionado.</p>
 
-                <p>
-                  ¿Estás seguro de eliminar el CAV{' '}
-                  <strong>{eliminandoCav.nombreCav}</strong>?
-                </p>
+                  <label>Ciudad asociada</label>
 
-                <div className="ciudades-cavs__acciones-form">
-                  <button
-                    type="button"
-                    className="ciudades-cavs__boton-eliminar"
-                    onClick={confirmarEliminarCav}
-                    disabled={guardando}
-                  >
-                    {guardando ? 'Eliminando...' : 'Eliminar'}
-                  </button>
+                  <div className="ciudades-cavs__campo-solo-lectura">
+                    {editandoCav?.ciudadNombre || 'Sin ciudad asociada'}
+                  </div>
 
-                  <button
-                    type="button"
-                    className="ciudades-cavs__boton-secundario"
-                    onClick={() => setEliminandoCav(null)}
-                    disabled={guardando}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2>{editandoCav ? 'Editar CAV' : 'Crear CAV'}</h2>
+                  <label htmlFor="nombreCav">Nombre del CAV</label>
 
-                <p>Registra o actualiza los CAVs asociados a una ciudad.</p>
+                  <input
+                    id="nombreCav"
+                    type="text"
+                    value={formCav.nombre}
+                    placeholder="Ej: CAV Centro"
+                    onChange={(evento) =>
+                      setFormCav((prev) => ({
+                        ...prev,
+                        nombre: evento.target.value,
+                      }))
+                    }
+                  />
 
-                <label htmlFor="nombreCav">Nombre del CAV</label>
+                  <div className="ciudades-cavs__acciones-form">
+                    <button type="submit" disabled={guardando}>
+                      {guardando ? 'Guardando...' : 'Guardar cambios'}
+                    </button>
 
-                <input
-                  id="nombreCav"
-                  type="text"
-                  value={formCav.nombre}
-                  placeholder="Ej: CAV Centro"
-                  onChange={(evento) =>
-                    setFormCav((prev) => ({
-                      ...prev,
-                      nombre: evento.target.value,
-                    }))
-                  }
-                />
-
-                <label htmlFor="ciudadCav">Ciudad asociada</label>
-
-                <select
-                  id="ciudadCav"
-                  value={formCav.ciudadId}
-                  onChange={(evento) =>
-                    setFormCav((prev) => ({
-                      ...prev,
-                      ciudadId: evento.target.value,
-                    }))
-                  }
-                >
-                  <option value="">Seleccionar ciudad</option>
-
-                  {opcionesCiudades.map((ciudad) => (
-                    <option key={ciudad.valor} value={ciudad.valor}>
-                      {ciudad.etiqueta}
-                    </option>
-                  ))}
-                </select>
-
-                <div className="ciudades-cavs__acciones-form">
-                  <button type="submit" disabled={guardando}>
-                    {guardando
-                      ? 'Guardando...'
-                      : editandoCav
-                        ? 'Guardar cambios'
-                        : 'Guardar'}
-                  </button>
-
-                  {editandoCav && (
                     <button
                       type="button"
                       className="ciudades-cavs__boton-secundario"
@@ -881,11 +701,171 @@ function CiudadesCavs({ onVolver }) {
                     >
                       Cancelar
                     </button>
+                  </div>
+                </>
+              )}
+            </form>
+          ) : (
+            <form
+              onSubmit={guardarCiudad}
+              className={`ciudades-cavs__form ${
+                editandoCiudad ? 'ciudades-cavs__form--editando' : ''
+              } ${eliminandoCiudad ? 'ciudades-cavs__form--eliminar' : ''}`}
+            >
+              {eliminandoCiudad ? (
+                <>
+                  <h2>Eliminar ciudad</h2>
+
+                  <p>
+                    ¿Estás seguro de eliminar la ciudad{' '}
+                    <strong>{eliminandoCiudad.nombreCiudad}</strong>?
+                  </p>
+
+                  <div className="ciudades-cavs__acciones-form">
+                    <button
+                      type="button"
+                      className="ciudades-cavs__boton-eliminar"
+                      onClick={confirmarEliminarCiudad}
+                      disabled={guardando}
+                    >
+                      {guardando ? 'Eliminando...' : 'Eliminar'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="ciudades-cavs__boton-secundario"
+                      onClick={() => setEliminandoCiudad(null)}
+                      disabled={guardando}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2>{editandoCiudad ? 'Editar ciudad' : 'Crear ciudad'}</h2>
+
+                  <p>
+                    Registra o actualiza las ciudades disponibles para los incidentes.
+                  </p>
+
+                  <label htmlFor="nombreCiudad">Nombre de la ciudad</label>
+
+                  <input
+                    id="nombreCiudad"
+                    type="text"
+                    value={formCiudad.nombre}
+                    placeholder="Ej: Bogotá"
+                    onChange={(evento) =>
+                      setFormCiudad((prev) => ({
+                        ...prev,
+                        nombre: evento.target.value,
+                      }))
+                    }
+                  />
+
+                  {editandoCiudad && (
+                    <div className="ciudades-cavs__editar-cavs">
+                      <div className="ciudades-cavs__cavs-header">
+                        <label>Nuevos CAVs</label>
+
+                        <button
+                          type="button"
+                          className="ciudades-cavs__boton-agregar"
+                          onClick={agregarNuevoCavCiudad}
+                          disabled={guardando}
+                        >
+                          + Agregar CAV
+                        </button>
+                      </div>
+
+                      {formCiudad.nuevosCavs.map((cav, index) => (
+                        <div key={index} className="ciudades-cavs__cav-campo">
+                          <input
+                            type="text"
+                            value={cav}
+                            placeholder={`Nuevo CAV ${index + 1}`}
+                            onChange={(evento) =>
+                              cambiarNuevoCavCiudad(index, evento.target.value)
+                            }
+                          />
+
+                          <button
+                            type="button"
+                            className="ciudades-cavs__boton-quitar"
+                            onClick={() => eliminarNuevoCavCiudad(index)}
+                            disabled={guardando}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
-                </div>
-              </>
-            )}
-          </form>
+
+                  {!editandoCiudad && (
+                    <div className="ciudades-cavs__cavs-formulario">
+                      <div className="ciudades-cavs__cavs-header">
+                        <label>CAVs asociados</label>
+
+                        <button
+                          type="button"
+                          className="ciudades-cavs__boton-agregar"
+                          onClick={agregarCavCiudad}
+                          disabled={guardando}
+                        >
+                          + Agregar CAV
+                        </button>
+                      </div>
+
+                      {formCiudad.cavs.map((cav, index) => (
+                        <div key={index} className="ciudades-cavs__cav-campo">
+                          <input
+                            type="text"
+                            value={cav}
+                            placeholder={`Ej: CAV ${index + 1}`}
+                            onChange={(evento) =>
+                              cambiarCavCiudad(index, evento.target.value)
+                            }
+                          />
+
+                          <button
+                            type="button"
+                            className="ciudades-cavs__boton-quitar"
+                            onClick={() => eliminarCavCiudad(index)}
+                            disabled={guardando}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="ciudades-cavs__acciones-form">
+                    <button type="submit" disabled={guardando}>
+                      {guardando
+                        ? 'Guardando...'
+                        : editandoCiudad
+                          ? 'Guardar cambios'
+                          : 'Guardar'}
+                    </button>
+
+                    {editandoCiudad && (
+                      <button
+                        type="button"
+                        className="ciudades-cavs__boton-secundario"
+                        onClick={cancelarEdicionCiudad}
+                        disabled={guardando}
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </form>
+          )}
         </aside>
       </div>
     </section>

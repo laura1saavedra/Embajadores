@@ -537,6 +537,20 @@
   color: #dc2626;
 }
 
+.ciudades-cavs__campo-solo-lectura {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  margin-bottom: 14px;
+  border: 1px solid #f0dede;
+  border-radius: 12px;
+  background: #fffafa;
+  color: #6e2c2f;
+  font-size: 14px;
+  font-weight: 800;
+}
+
 /* ─────────────────── RESPONSIVE ───────────────────────── */
 
 @media (max-width: 1100px) {
