@@ -46,6 +46,14 @@ function AplicacionesTipos({ onVolver }) {
     }, 100);
   };
 
+  const normalizarParaComparar = (texto = '') =>
+  texto
+    .trim()
+    .replace(/\s+/g, ' ')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
   useEffect(() => {
     cargarDatos();
   }, []);
@@ -121,6 +129,16 @@ function AplicacionesTipos({ onVolver }) {
     return tiposFiltrados.slice(inicio, fin);
   }, [tiposFiltrados, paginaTipos]);
 
+  const aplicacionSinCambios =
+  editandoAplicacion &&
+  normalizarParaComparar(formAplicacion.nombre) ===
+    normalizarParaComparar(editandoAplicacion.nombreAplicacion);
+
+  const tipoFallaSinCambios =
+    editandoTipoFalla &&
+    normalizarParaComparar(formTipoFalla.nombre) ===
+      normalizarParaComparar(editandoTipoFalla.nombreTipo);
+
   const guardarAplicacion = async (evento) => {
     evento.preventDefault();
 
@@ -129,6 +147,14 @@ function AplicacionesTipos({ onVolver }) {
     if (!nombre) {
       setMensajeError('El nombre de la aplicación es obligatorio.');
       subirAlInicio();
+      return;
+    }
+
+    if (aplicacionSinCambios) {
+      setFormAplicacion(FORM_INICIAL);
+      setEditandoAplicacion(null);
+      setMensajeExito('');
+      setMensajeError('');
       return;
     }
 
@@ -171,6 +197,14 @@ function AplicacionesTipos({ onVolver }) {
     if (!nombre) {
       setMensajeError('El nombre del tipo de falla es obligatorio.');
       subirAlInicio();
+      return;
+    }
+
+    if (tipoFallaSinCambios) {
+      setFormTipoFalla(FORM_INICIAL);
+      setEditandoTipoFalla(null);
+      setMensajeExito('');
+      setMensajeError('');
       return;
     }
 
@@ -651,11 +685,16 @@ function AplicacionesTipos({ onVolver }) {
                 />
 
                 <div className="aplicaciones-tipos__acciones-form">
-                  <button type="submit" disabled={guardando}>
+                  <button
+                    type="submit"
+                    disabled={guardando}
+                  >
                     {guardando
                       ? 'Guardando...'
                       : editandoAplicacion
-                        ? 'Guardar cambios'
+                        ? aplicacionSinCambios
+                          ? 'Guardar sin cambios'
+                          : 'Guardar cambios'
                         : 'Guardar'}
                   </button>
 
@@ -739,11 +778,16 @@ function AplicacionesTipos({ onVolver }) {
                 />
 
                 <div className="aplicaciones-tipos__acciones-form">
-                  <button type="submit" disabled={guardando}>
+                  <button
+                    type="submit"
+                    disabled={guardando}
+                  >
                     {guardando
                       ? 'Guardando...'
                       : editandoTipoFalla
-                        ? 'Guardar cambios'
+                        ? tipoFallaSinCambios
+                          ? 'Guardar sin cambios'
+                          : 'Guardar cambios'
                         : 'Guardar'}
                   </button>
 
