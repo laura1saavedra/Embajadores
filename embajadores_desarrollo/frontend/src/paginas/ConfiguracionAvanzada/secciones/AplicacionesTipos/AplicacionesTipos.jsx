@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import configuracionServicio from '../../../../services/configuracionServicio';
 
@@ -35,6 +35,17 @@ function AplicacionesTipos({ onVolver }) {
   const [mensajeError, setMensajeError] = useState('');
   const [mensajeExito, setMensajeExito] = useState('');
 
+  const inicioRef = useRef(null);
+
+  const subirAlInicio = () => {
+    setTimeout(() => {
+      inicioRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 100);
+  };
+
   useEffect(() => {
     cargarDatos();
   }, []);
@@ -55,6 +66,7 @@ function AplicacionesTipos({ onVolver }) {
       setMensajeError(
         error.message || 'No fue posible cargar la información.'
       );
+      subirAlInicio();
     } finally {
       setCargando(false);
     }
@@ -116,6 +128,7 @@ function AplicacionesTipos({ onVolver }) {
 
     if (!nombre) {
       setMensajeError('El nombre de la aplicación es obligatorio.');
+      subirAlInicio();
       return;
     }
 
@@ -130,9 +143,11 @@ function AplicacionesTipos({ onVolver }) {
         );
 
         setMensajeExito('Aplicación actualizada correctamente.');
+        subirAlInicio();
       } else {
         await configuracionServicio.crearAplicacion(nombre);
         setMensajeExito('Aplicación creada correctamente.');
+        subirAlInicio();
       }
 
       setFormAplicacion(FORM_INICIAL);
@@ -142,6 +157,7 @@ function AplicacionesTipos({ onVolver }) {
       await cargarDatos();
     } catch (error) {
       setMensajeError(error.message || 'No fue posible guardar la aplicación.');
+      subirAlInicio();
     } finally {
       setGuardando(false);
     }
@@ -154,6 +170,7 @@ function AplicacionesTipos({ onVolver }) {
 
     if (!nombre) {
       setMensajeError('El nombre del tipo de falla es obligatorio.');
+      subirAlInicio();
       return;
     }
 
@@ -168,9 +185,11 @@ function AplicacionesTipos({ onVolver }) {
         );
 
         setMensajeExito('Tipo de falla actualizado correctamente.');
+        subirAlInicio();
       } else {
         await configuracionServicio.crearTipoFalla(nombre);
         setMensajeExito('Tipo de falla creado correctamente.');
+        subirAlInicio();
       }
 
       setFormTipoFalla(FORM_INICIAL);
@@ -182,6 +201,7 @@ function AplicacionesTipos({ onVolver }) {
       setMensajeError(
         error.message || 'No fue posible guardar el tipo de falla.'
       );
+      subirAlInicio();
     } finally {
       setGuardando(false);
     }
@@ -272,8 +292,10 @@ function AplicacionesTipos({ onVolver }) {
       await cargarDatos();
 
       setMensajeExito('Aplicación eliminada correctamente.');
+      subirAlInicio();
     } catch (error) {
       setMensajeError(error.message || 'No fue posible eliminar la aplicación.');
+      subirAlInicio();
     } finally {
       setGuardando(false);
     }
@@ -294,10 +316,12 @@ function AplicacionesTipos({ onVolver }) {
       await cargarDatos();
 
       setMensajeExito('Tipo de falla eliminado correctamente.');
+      subirAlInicio();
     } catch (error) {
       setMensajeError(
         error.message || 'No fue posible eliminar el tipo de falla.'
       );
+      subirAlInicio();
     } finally {
       setGuardando(false);
     }
@@ -314,7 +338,7 @@ function AplicacionesTipos({ onVolver }) {
   }
 
   return (
-    <section className="aplicaciones-tipos">
+    <section className="aplicaciones-tipos" ref={inicioRef}>
       <div className="aplicaciones-tipos__encabezado">
         <button
           type="button"
