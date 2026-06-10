@@ -7,16 +7,27 @@ CRUD de tipos de falla.
 """
 
 import logging
+import unicodedata
 from typing import Optional, List, Tuple, Dict, Any
 
 from db import get_db_session
-from models import (
-    TipoFalla,
-    AplicacionAfectada,
-    Masivo,
-)
+from models import TipoFalla, AplicacionAfectada, Masivo
 
 logger = logging.getLogger(__name__)
+
+
+def _normalizar_nombre(nombre: str) -> str:
+    return " ".join(nombre.strip().split())
+
+
+def _normalizar_para_comparar(nombre: str) -> str:
+    nombre = _normalizar_nombre(nombre).lower()
+    nombre = unicodedata.normalize("NFD", nombre)
+    nombre = "".join(
+        caracter for caracter in nombre
+        if unicodedata.category(caracter) != "Mn"
+    )
+    return nombre
 
 
 def _tipo_falla_a_dict(tipo: TipoFalla) -> Dict[str, Any]:
@@ -36,17 +47,13 @@ class TipoFallaService:
     def listar_tipos_falla() -> Tuple[Optional[List[Dict]], Optional[str]]:
         try:
             with get_db_session() as db:
-
                 tipos = (
                     db.query(TipoFalla)
                     .order_by(TipoFalla.nombre_tipo.asc())
                     .all()
                 )
 
-                return [
-                    _tipo_falla_a_dict(tipo)
-                    for tipo in tipos
-                ], None
+                return [_tipo_falla_a_dict(tipo) for tipo in tipos], None
 
         except Exception as e:
             logger.error(f"Error al listar tipos de falla: {e}")
@@ -57,17 +64,12 @@ class TipoFallaService:
     # ─────────────────────────────────────────────────────────────
 
     @staticmethod
-    def obtener_tipo_falla(
-        id_tipo_falla: int,
-    ) -> Tuple[Optional[Dict], Optional[str]]:
+    def obtener_tipo_falla(id_tipo_falla: int) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
-
                 tipo = (
                     db.query(TipoFalla)
-                    .filter(
-                        TipoFalla.id_tipo_falla == id_tipo_falla
-                    )
+                    .filter(TipoFalla.id_tipo_falla == id_tipo_falla)
                     .first()
                 )
 
@@ -77,9 +79,7 @@ class TipoFallaService:
                 return _tipo_falla_a_dict(tipo), None
 
         except Exception as e:
-            logger.error(
-                f"Error al obtener tipo de falla {id_tipo_falla}: {e}"
-            )
+            logger.error(f"Error al obtener tipo de falla {id_tipo_falla}: {e}")
             return None, str(e)
 
     # ─────────────────────────────────────────────────────────────
@@ -87,31 +87,30 @@ class TipoFallaService:
     # ─────────────────────────────────────────────────────────────
 
     @staticmethod
-    def crear_tipo_falla(
-        nombre_tipo: str,
-    ) -> Tuple[Optional[Dict], Optional[str]]:
+    def crear_tipo_falla(nombre_tipo: str) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
-
-                nombre = " ".join(nombre_tipo.strip().split())
+                nombre = _normalizar_nombre(nombre_tipo)
 
                 if not nombre:
                     return None, "El nombre del tipo de falla es obligatorio"
 
-                existe = (
-                    db.query(TipoFalla)
-                    .filter(
-                        TipoFalla.nombre_tipo.ilike(nombre)
-                    )
-                    .first()
+                nombre_comparado = _normalizar_para_comparar(nombre)
+
+                tipos = db.query(TipoFalla).all()
+
+                existe = any(
+                    _normalizar_para_comparar(tipo.nombre_tipo) == nombre_comparado
+                    for tipo in tipos
                 )
 
                 if existe:
-                    return None, "Ya existe un tipo de falla con ese nombre"
+                    return None, (
+                        "Ya existe un tipo de falla con ese nombre. "
+                        "Puedes editar el tipo de falla existente."
+                    )
 
-                nuevo = TipoFalla(
-                    nombre_tipo=nombre
-                )
+                nuevo = TipoFalla(nombre_tipo=nombre)
 
                 db.add(nuevo)
                 db.commit()
@@ -134,34 +133,38 @@ class TipoFallaService:
     ) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
-
                 tipo = (
                     db.query(TipoFalla)
-                    .filter(
-                        TipoFalla.id_tipo_falla == id_tipo_falla
-                    )
+                    .filter(TipoFalla.id_tipo_falla == id_tipo_falla)
                     .first()
                 )
 
                 if not tipo:
                     return None, "Tipo de falla no encontrado"
 
-                nombre = " ".join(nombre_tipo.strip().split())
+                nombre = _normalizar_nombre(nombre_tipo)
 
                 if not nombre:
                     return None, "El nombre del tipo de falla es obligatorio"
 
-                existe = (
+                nombre_comparado = _normalizar_para_comparar(nombre)
+
+                tipos = (
                     db.query(TipoFalla)
-                    .filter(
-                        TipoFalla.id_tipo_falla != id_tipo_falla,
-                        TipoFalla.nombre_tipo.ilike(nombre)
-                    )
-                    .first()
+                    .filter(TipoFalla.id_tipo_falla != id_tipo_falla)
+                    .all()
+                )
+
+                existe = any(
+                    _normalizar_para_comparar(item.nombre_tipo) == nombre_comparado
+                    for item in tipos
                 )
 
                 if existe:
-                    return None, "Ya existe otro tipo de falla con ese nombre"
+                    return None, (
+                        "Ya existe un tipo de falla con ese nombre. "
+                        "Puedes editar el tipo de falla existente."
+                    )
 
                 tipo.nombre_tipo = nombre
 
@@ -171,9 +174,7 @@ class TipoFallaService:
                 return _tipo_falla_a_dict(tipo), None
 
         except Exception as e:
-            logger.error(
-                f"Error al actualizar tipo de falla {id_tipo_falla}: {e}"
-            )
+            logger.error(f"Error al actualizar tipo de falla {id_tipo_falla}: {e}")
             return None, str(e)
 
     # ─────────────────────────────────────────────────────────────
@@ -181,17 +182,12 @@ class TipoFallaService:
     # ─────────────────────────────────────────────────────────────
 
     @staticmethod
-    def eliminar_tipo_falla(
-        id_tipo_falla: int,
-    ) -> Tuple[Optional[Dict], Optional[str]]:
+    def eliminar_tipo_falla(id_tipo_falla: int) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
-
                 tipo = (
                     db.query(TipoFalla)
-                    .filter(
-                        TipoFalla.id_tipo_falla == id_tipo_falla
-                    )
+                    .filter(TipoFalla.id_tipo_falla == id_tipo_falla)
                     .first()
                 )
 
@@ -200,32 +196,28 @@ class TipoFallaService:
 
                 tiene_incidentes = (
                     db.query(AplicacionAfectada)
-                    .filter(
-                        AplicacionAfectada.tipo_falla_id == id_tipo_falla
-                    )
+                    .filter(AplicacionAfectada.tipo_falla_id == id_tipo_falla)
                     .first()
                     is not None
                 )
 
                 if tiene_incidentes:
-                    return (
-                        None,
-                        "No se puede eliminar el tipo de falla porque tiene incidentes asociados"
+                    return None, (
+                        "No se puede eliminar el tipo de falla porque tiene "
+                        "incidentes asociados"
                     )
 
                 tiene_masivos = (
                     db.query(Masivo)
-                    .filter(
-                        Masivo.tipo_falla_id == id_tipo_falla
-                    )
+                    .filter(Masivo.tipo_falla_id == id_tipo_falla)
                     .first()
                     is not None
                 )
 
                 if tiene_masivos:
-                    return (
-                        None,
-                        "No se puede eliminar el tipo de falla porque tiene incidentes masivos asociados"
+                    return None, (
+                        "No se puede eliminar el tipo de falla porque tiene "
+                        "incidentes masivos asociados"
                     )
 
                 db.delete(tipo)

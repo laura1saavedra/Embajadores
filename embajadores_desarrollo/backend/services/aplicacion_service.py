@@ -5,6 +5,7 @@ CRUD de aplicaciones.
 """
 
 import logging
+import unicodedata
 from typing import Optional, List, Tuple, Dict, Any
 
 from db import get_db_session
@@ -15,6 +16,16 @@ logger = logging.getLogger(__name__)
 
 def _normalizar_nombre(nombre: str) -> str:
     return " ".join(nombre.strip().split())
+
+
+def _normalizar_para_comparar(nombre: str) -> str:
+    nombre = _normalizar_nombre(nombre).lower()
+    nombre = unicodedata.normalize("NFD", nombre)
+    nombre = "".join(
+        caracter for caracter in nombre
+        if unicodedata.category(caracter) != "Mn"
+    )
+    return nombre
 
 
 def _aplicacion_a_dict(aplicacion: Aplicacion) -> Dict[str, Any]:
@@ -43,9 +54,7 @@ class AplicacionService:
             return None, str(e)
 
     @staticmethod
-    def obtener_aplicacion(
-        id_aplicacion: int,
-    ) -> Tuple[Optional[Dict], Optional[str]]:
+    def obtener_aplicacion(id_aplicacion: int) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
                 aplicacion = (
@@ -64,9 +73,7 @@ class AplicacionService:
             return None, str(e)
 
     @staticmethod
-    def crear_aplicacion(
-        nombre_aplicacion: str,
-    ) -> Tuple[Optional[Dict], Optional[str]]:
+    def crear_aplicacion(nombre_aplicacion: str) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
                 nombre = _normalizar_nombre(nombre_aplicacion)
@@ -74,14 +81,20 @@ class AplicacionService:
                 if not nombre:
                     return None, "El nombre de la aplicación es obligatorio"
 
-                existe = (
-                    db.query(Aplicacion)
-                    .filter(Aplicacion.nombre_aplicacion.ilike(nombre))
-                    .first()
+                nombre_comparado = _normalizar_para_comparar(nombre)
+
+                aplicaciones = db.query(Aplicacion).all()
+
+                existe = any(
+                    _normalizar_para_comparar(app.nombre_aplicacion) == nombre_comparado
+                    for app in aplicaciones
                 )
 
                 if existe:
-                    return None, "Ya existe una aplicación con ese nombre"
+                    return None, (
+                        "Ya existe una aplicación con ese nombre. "
+                        "Puedes editar la aplicación existente."
+                    )
 
                 nueva = Aplicacion(nombre_aplicacion=nombre)
 
@@ -116,17 +129,24 @@ class AplicacionService:
                 if not aplicacion:
                     return None, "Aplicación no encontrada"
 
-                existe = (
+                nombre_comparado = _normalizar_para_comparar(nombre)
+
+                aplicaciones = (
                     db.query(Aplicacion)
-                    .filter(
-                        Aplicacion.id_aplicacion != id_aplicacion,
-                        Aplicacion.nombre_aplicacion.ilike(nombre),
-                    )
-                    .first()
+                    .filter(Aplicacion.id_aplicacion != id_aplicacion)
+                    .all()
+                )
+
+                existe = any(
+                    _normalizar_para_comparar(app.nombre_aplicacion) == nombre_comparado
+                    for app in aplicaciones
                 )
 
                 if existe:
-                    return None, "Ya existe una aplicación con ese nombre"
+                    return None, (
+                        "Ya existe una aplicación con ese nombre. "
+                        "Puedes editar la aplicación existente."
+                    )
 
                 aplicacion.nombre_aplicacion = nombre
 
@@ -140,9 +160,7 @@ class AplicacionService:
             return None, str(e)
 
     @staticmethod
-    def eliminar_aplicacion(
-        id_aplicacion: int,
-    ) -> Tuple[Optional[Dict], Optional[str]]:
+    def eliminar_aplicacion(id_aplicacion: int) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
                 aplicacion = (
