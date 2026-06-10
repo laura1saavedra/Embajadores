@@ -410,6 +410,87 @@
   background: #b91c1c !important;
 }
 
+/* ─────────────────── CAVS DINÁMICOS EN CREAR CIUDAD ───────────────── */
+
+.ciudades-cavs__cavs-formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.ciudades-cavs__cavs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ciudades-cavs__cavs-header label {
+  margin: 0;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ciudades-cavs__cav-campo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 8px;
+  align-items: center;
+}
+
+.ciudades-cavs__cav-campo input {
+  margin-bottom: 0;
+}
+
+.ciudades-cavs__boton-quitar {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #f3c8cd;
+  border-radius: 12px;
+  background: #fff5f6;
+  color: #e30613;
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ciudades-cavs__boton-quitar:hover:not(:disabled) {
+  background: #e30613;
+  color: #ffffff;
+  border-color: #e30613;
+  transform: translateY(-1px);
+}
+
+.ciudades-cavs__boton-agregar {
+  height: 34px;
+  min-width: 128px;
+  border: 1px solid #e30613;
+  border-radius: 10px;
+  padding: 0 14px;
+  background: #fff5f6;
+  color: #e30613;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: none;
+  transition: all 0.2s ease;
+}
+
+.ciudades-cavs__boton-agregar:hover:not(:disabled) {
+  background: #e30613;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.ciudades-cavs__boton-agregar:disabled,
+.ciudades-cavs__boton-quitar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ─────────────────── ESTADOS FORMULARIO ───────────────── */
 
 .ciudades-cavs__form--editando {
@@ -485,5 +566,14 @@
   .ciudades-cavs__cav-item {
     grid-template-columns: 1fr;
     align-items: flex-start;
+  }
+
+  .ciudades-cavs__cavs-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ciudades-cavs__boton-agregar {
+    width: 100%;
   }
 }

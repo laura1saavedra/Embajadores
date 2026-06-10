@@ -6,6 +6,7 @@ import './CiudadesCavs.css';
 
 const FORM_CIUDAD_INICIAL = {
   nombre: '',
+  cavs: [''],
 };
 
 const FORM_CAV_INICIAL = {
@@ -138,8 +139,31 @@ function CiudadesCavs({ onVolver }) {
         setMensajeExito('Ciudad actualizada correctamente.');
         subirAlInicio();
       } else {
-        await configuracionServicio.crearCiudad(nombre);
-        setMensajeExito('Ciudad creada correctamente.');
+        const cavsLimpios = formCiudad.cavs
+          .map((cav) => cav.trim())
+          .filter(Boolean);
+
+        if (cavsLimpios.length === 0) {
+          setMensajeError('Agrega al menos un CAV para crear la ciudad.');
+          subirAlInicio();
+          return;
+        }
+
+        const cavsDuplicados = cavsLimpios.some(
+          (cav, index) =>
+            cavsLimpios.findIndex(
+              (item) => item.toLowerCase() === cav.toLowerCase()
+            ) !== index
+        );
+
+        if (cavsDuplicados) {
+          setMensajeError('No puedes agregar CAVs duplicados.');
+          subirAlInicio();
+          return;
+        }
+
+        await configuracionServicio.crearCiudadCompleta(nombre, cavsLimpios);
+        setMensajeExito('Ciudad y CAVs creados correctamente.');
         subirAlInicio();
       }
 
@@ -199,6 +223,32 @@ function CiudadesCavs({ onVolver }) {
     }
   };
 
+  const agregarCavCiudad = () => {
+  setFormCiudad((prev) => ({
+    ...prev,
+    cavs: [...prev.cavs, ''],
+  }));
+};
+
+  const cambiarCavCiudad = (index, valor) => {
+    setFormCiudad((prev) => ({
+      ...prev,
+      cavs: prev.cavs.map((cav, posicion) =>
+        posicion === index ? valor : cav
+      ),
+    }));
+  };
+
+  const eliminarCavCiudad = (index) => {
+    setFormCiudad((prev) => ({
+      ...prev,
+      cavs:
+        prev.cavs.length > 1
+          ? prev.cavs.filter((_, posicion) => posicion !== index)
+          : [''],
+    }));
+  };
+
   const prepararEditarCiudad = (ciudad) => {
     limpiarMensajes();
 
@@ -209,6 +259,7 @@ function CiudadesCavs({ onVolver }) {
 
     setFormCiudad({
       nombre: ciudad.nombreCiudad,
+      cavs: [''],
     });
   };
 
@@ -585,11 +636,51 @@ function CiudadesCavs({ onVolver }) {
                   value={formCiudad.nombre}
                   placeholder="Ej: Bogotá"
                   onChange={(evento) =>
-                    setFormCiudad({
-                      nombre: evento.target.value,
-                    })
+                    setFormCiudad((prev) => ({
+                    ...prev,
+                    nombre: evento.target.value,
+                  }))
                   }
                 />
+
+                {!editandoCiudad && (
+                  <div className="ciudades-cavs__cavs-formulario">
+                    <div className="ciudades-cavs__cavs-header">
+                      <label>CAVs asociados</label>
+
+                      <button
+                        type="button"
+                        className="ciudades-cavs__boton-agregar"
+                        onClick={agregarCavCiudad}
+                        disabled={guardando}
+                      >
+                        + Agregar CAV
+                      </button>
+                    </div>
+
+                    {formCiudad.cavs.map((cav, index) => (
+                      <div key={index} className="ciudades-cavs__cav-campo">
+                        <input
+                          type="text"
+                          value={cav}
+                          placeholder={`Ej: CAV ${index + 1}`}
+                          onChange={(evento) =>
+                            cambiarCavCiudad(index, evento.target.value)
+                          }
+                        />
+
+                        <button
+                          type="button"
+                          className="ciudades-cavs__boton-quitar"
+                          onClick={() => eliminarCavCiudad(index)}
+                          disabled={guardando}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="ciudades-cavs__acciones-form">
                   <button type="submit" disabled={guardando}>
