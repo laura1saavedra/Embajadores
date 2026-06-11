@@ -39,6 +39,8 @@ function CiudadesCavs({ onVolver }) {
   const [mensajeError, setMensajeError] = useState('');
   const [mensajeExito, setMensajeExito] = useState('');
 
+  const [mostrarNuevosCavs, setMostrarNuevosCavs] = useState(false);
+
   const inicioRef = useRef(null);
 
   const subirAlInicio = () => {
@@ -306,6 +308,7 @@ function CiudadesCavs({ onVolver }) {
     setEditandoCav(null);
     setEliminandoCiudad(null);
     setEliminandoCav(null);
+    setMostrarNuevosCavs(false);
 
     setFormCiudad({
       nombre: ciudad.nombreCiudad,
@@ -796,42 +799,59 @@ function CiudadesCavs({ onVolver }) {
                   />
 
                   {editandoCiudad && (
-                    <div className="ciudades-cavs__editar-cavs">
+                    <>
                       <div className="ciudades-cavs__cavs-header">
-                        <label>Nuevos CAVs</label>
-
                         <button
                           type="button"
                           className="ciudades-cavs__boton-agregar"
-                          onClick={agregarNuevoCavCiudad}
-                          disabled={guardando}
+                          onClick={() =>
+                            setMostrarNuevosCavs((valorActual) => !valorActual)
+                          }
                         >
-                          + Agregar CAV
+                          {mostrarNuevosCavs
+                            ? 'Ocultar CAVs'
+                            : '+ Agregar CAV'}
                         </button>
                       </div>
 
-                      {formCiudad.nuevosCavs.map((cav, index) => (
-                        <div key={index} className="ciudades-cavs__cav-campo">
-                          <input
-                            type="text"
-                            value={cav}
-                            placeholder={`Nuevo CAV ${index + 1}`}
-                            onChange={(evento) =>
-                              cambiarNuevoCavCiudad(index, evento.target.value)
-                            }
-                          />
+                      {mostrarNuevosCavs && (
+                        <div className="ciudades-cavs__editar-cavs">
+                          <div className="ciudades-cavs__cavs-header">
+                            <label>Nuevos CAVs</label>
+                          </div>
 
-                          <button
-                            type="button"
-                            className="ciudades-cavs__boton-quitar"
-                            onClick={() => eliminarNuevoCavCiudad(index)}
-                            disabled={guardando}
-                          >
-                            ✕
-                          </button>
+                          {formCiudad.nuevosCavs.map((cav, index) => (
+                            <div
+                              key={index}
+                              className="ciudades-cavs__cav-campo"
+                            >
+                              <input
+                                type="text"
+                                value={cav}
+                                placeholder={`Nuevo CAV ${index + 1}`}
+                                onChange={(evento) =>
+                                  cambiarNuevoCavCiudad(
+                                    index,
+                                    evento.target.value
+                                  )
+                                }
+                              />
+
+                              <button
+                                type="button"
+                                className="ciudades-cavs__boton-quitar"
+                                onClick={() =>
+                                  eliminarNuevoCavCiudad(index)
+                                }
+                                disabled={guardando}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
                   )}
 
                   {!editandoCiudad && (
