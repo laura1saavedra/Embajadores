@@ -818,6 +818,15 @@ function CiudadesCavs({ onVolver }) {
                         <div className="ciudades-cavs__editar-cavs">
                           <div className="ciudades-cavs__cavs-header">
                             <label>Nuevos CAVs</label>
+
+                            <button
+                              type="button"
+                              className="ciudades-cavs__boton-agregar"
+                              onClick={agregarNuevoCavCiudad}
+                              disabled={guardando}
+                            >
+                              + Agregar otro
+                            </button>
                           </div>
 
                           {formCiudad.nuevosCavs.map((cav, index) => (
