@@ -479,15 +479,36 @@ function CiudadesCavs({ onVolver }) {
               </div>
 
               <div className="ciudades-cavs__header-derecha">
-                <input
-                  type="text"
-                  placeholder="Buscar ciudad o CAV..."
-                  value={busquedaCiudad}
-                  onChange={(evento) => {
-                    setBusquedaCiudad(evento.target.value);
-                    setPaginaCiudades(1);
-                  }}
-                />
+                <div className="ciudades-cavs__buscador">
+                  <input
+                    type="text"
+                    placeholder="Buscar ciudad o CAV..."
+                    value={busquedaCiudad}
+                    onChange={(evento) => {
+                      setBusquedaCiudad(evento.target.value);
+                      setPaginaCiudades(1);
+                    }}
+                  />
+
+                  {busquedaCiudad.trim().length > 0 && (
+                    <button
+                      type="button"
+                      className="ciudades-cavs__limpiar-busqueda"
+                      onClick={() => {
+                        setBusquedaCiudad('');
+                        setPaginaCiudades(1);
+
+                         cancelarEdicionCiudad();
+
+                        setEditandoCav(null);
+                        setEliminandoCav(null);
+                      }}
+                      aria-label="Limpiar búsqueda"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
 
                 {totalPaginasCiudades > 1 && (
                   <div className="ciudades-cavs__paginacion-mini">
