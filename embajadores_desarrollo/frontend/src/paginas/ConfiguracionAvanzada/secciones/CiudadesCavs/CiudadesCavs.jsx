@@ -43,6 +43,26 @@ function CiudadesCavs({ onVolver }) {
 
   const inicioRef = useRef(null);
 
+  const normalizarParaComparar = (texto = '') =>
+    texto
+      .trim()
+      .replace(/\s+/g, ' ')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+  const ciudadSinCambios =
+    editandoCiudad &&
+    normalizarParaComparar(formCiudad.nombre) ===
+      normalizarParaComparar(editandoCiudad.nombreCiudad) &&
+    formCiudad.nuevosCavs.every((cav) => cav.trim().length === 0);
+
+  const cavSinCambios =
+    editandoCav &&
+    normalizarParaComparar(formCav.nombre) ===
+      normalizarParaComparar(editandoCav.nombreCav) &&
+    Number(formCav.ciudadId) === Number(editandoCav.ciudadId);
+
   const subirAlInicio = () => {
     setTimeout(() => {
       inicioRef.current?.scrollIntoView({
@@ -126,6 +146,14 @@ function CiudadesCavs({ onVolver }) {
     if (!nombre) {
       setMensajeError('El nombre de la ciudad es obligatorio.');
       subirAlInicio();
+      return;
+    }
+
+    if (ciudadSinCambios) {
+      setFormCiudad(FORM_CIUDAD_INICIAL);
+      setEditandoCiudad(null);
+      setMensajeExito('');
+      setMensajeError('');
       return;
     }
 
@@ -214,6 +242,14 @@ function CiudadesCavs({ onVolver }) {
     if (!nombre || !formCav.ciudadId) {
       setMensajeError('Completa el nombre del CAV y selecciona una ciudad.');
       subirAlInicio();
+      return;
+    }
+
+    if (cavSinCambios) {
+      setFormCav(FORM_CAV_INICIAL);
+      setEditandoCav(null);
+      setMensajeExito('');
+      setMensajeError('');
       return;
     }
 
@@ -729,7 +765,11 @@ function CiudadesCavs({ onVolver }) {
 
                   <div className="ciudades-cavs__acciones-form">
                     <button type="submit" disabled={guardando}>
-                      {guardando ? 'Guardando...' : 'Guardar cambios'}
+                      {guardando
+                        ? 'Guardando...'
+                        : cavSinCambios
+                          ? 'Guardar sin cambios'
+                          : 'Guardar cambios'}
                     </button>
 
                     <button
@@ -928,7 +968,9 @@ function CiudadesCavs({ onVolver }) {
                       {guardando
                         ? 'Guardando...'
                         : editandoCiudad
-                          ? 'Guardar cambios'
+                          ? ciudadSinCambios
+                            ? 'Guardar sin cambios'
+                            : 'Guardar cambios'
                           : 'Guardar'}
                     </button>
 
