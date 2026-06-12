@@ -218,6 +218,39 @@
   width: 190px;
 }
 
+.ciudades-cavs__buscador {
+  position: relative;
+  width: 260px;
+}
+
+.ciudades-cavs__buscador input {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.ciudades-cavs__limpiar-busqueda {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: #f4f4f5;
+  color: #64748b;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: all 0.2s ease;
+}
+
+.ciudades-cavs__limpiar-busqueda:hover {
+  background: #fff5f6;
+  color: #e30613;
+}
+
 /* ─────────────────── CIUDADES / CAVS ───────────────────── */
 
 .ciudades-cavs__expandir {
