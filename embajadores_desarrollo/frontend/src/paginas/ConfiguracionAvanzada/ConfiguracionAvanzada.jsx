@@ -7,7 +7,7 @@ import configuracionServicio from '../../services/configuracionServicio';
 
 import AplicacionesTipos from './secciones/AplicacionesTipos/AplicacionesTipos';
 import CiudadesCavs from './secciones/CiudadesCavs/CiudadesCavs';
-// import Usuarios from './secciones/Usuarios/Usuarios';
+import Usuarios from './secciones/Usuarios/Usuarios';
 // import HorarioLaboral from './secciones/HorarioLaboral/HorarioLaboral';
 
 import './ConfiguracionAvanzada.css';
@@ -20,6 +20,7 @@ function ConfiguracionAvanzada() {
 
   const [totalCiudades, setTotalCiudades] = useState(0);
   const [totalCavs, setTotalCavs] = useState(0);
+  const [totalUsuarios, setTotalUsuarios] = useState(0);
 
   const [cargando, setCargando] = useState(true);
   const [mensajeError, setMensajeError] = useState('');
@@ -33,17 +34,19 @@ function ConfiguracionAvanzada() {
       setCargando(true);
       setMensajeError('');
 
-      const [aplicaciones, tiposFalla, ciudades, cavs] = await Promise.all([
+      const [aplicaciones, tiposFalla, ciudades, cavs, usuarios] = await Promise.all([
         configuracionServicio.listarAplicaciones(),
         configuracionServicio.listarTiposFalla(),
         configuracionServicio.listarCiudades(),
         configuracionServicio.listarCavs(),
+        configuracionServicio.listarUsuarios(),
       ]);
 
       setTotalAplicaciones(aplicaciones.length);
       setTotalTiposFalla(tiposFalla.length);
       setTotalCiudades(ciudades.length);
       setTotalCavs(cavs.length);
+      setTotalUsuarios(usuarios.length);
     } catch (error) {
       setMensajeError(
         error.message || 'No fue posible cargar la configuración.'
@@ -74,7 +77,7 @@ function ConfiguracionAvanzada() {
       icono: '👥',
       titulo: 'Usuarios',
       descripcion: 'Gestiona los usuarios, roles y permisos de acceso.',
-      total: 0,
+      total: totalUsuarios,
       clase: 'morado',
       accion: () => setVistaActiva('usuarios'),
     },
@@ -179,21 +182,7 @@ function ConfiguracionAvanzada() {
         )}
 
         {vistaActiva === 'usuarios' && (
-          <section className="configuracion__bloque">
-            <button
-              type="button"
-              className="configuracion__volver"
-              onClick={abrirInicio}
-            >
-              ←
-            </button>
-
-            <h2 className="configuracion__subtitulo">Usuarios</h2>
-
-            <p className="configuracion__texto-simple">
-              Esta sección se implementará después.
-            </p>
-          </section>
+          <Usuarios onVolver={abrirInicio} />
         )}
 
         {vistaActiva === 'horario' && (
