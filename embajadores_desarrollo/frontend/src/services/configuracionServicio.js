@@ -2,7 +2,7 @@
  * services/configuracionServicio.js
  *
  * Servicio para Configuración Avanzada.
- * Maneja Aplicaciones, Tipos de falla, Ciudades y CAVs.
+ * Maneja Aplicaciones, Tipos de falla, Usuarios, Ciudades y CAVs.
  */
 
 import apiClient from './api.js';
@@ -36,6 +36,29 @@ const normalizarCiudad = (ciudad) => ({
         nombreCav: cav.nombre_cav,
       }))
     : [],
+});
+
+const normalizarRol = (rol) => ({
+  idRol: rol.idrol,
+  nombreRol: rol.nombre_rol,
+  descripcion: rol.descripcion ?? '',
+});
+
+const normalizarUsuario = (usuario) => ({
+  idUsuario: usuario.id_usuario,
+  nombre: usuario.nombre,
+  apellido: usuario.apellido,
+  correo: usuario.correo,
+  rolId: usuario.rol_id,
+  rolNombre: usuario.rol_nombre ?? '',
+  activo: Boolean(usuario.activo),
+  debeCambiarContrasena: Boolean(usuario.debe_cambiar_contrasena),
+  fechaCreacion: usuario.fecha_creacion ?? null,
+  fechaActualizacion: usuario.fecha_actualizacion ?? null,
+  ultimoLogin: usuario.ultimo_login ?? null,
+  intentosFallidos: usuario.intentos_fallidos ?? 0,
+  bloqueadoHasta: usuario.bloqueado_hasta ?? null,
+  contrasenaTemporal: usuario.contrasena_temporal ?? '',
 });
 
 // ── Servicio ───────────────────────────────────────────────────
@@ -214,6 +237,111 @@ class ConfiguracionServicio {
   async eliminarCav(idCav) {
     const { data } = await apiClient.delete(
       `${config.endpoints.cavs()}/${idCav}`
+    );
+
+    return data;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Usuarios
+  // ─────────────────────────────────────────────────────────────
+
+  async listarUsuarios({ soloActivos = false } = {}) {
+    const url = soloActivos
+      ? `${config.endpoints.usuarios()}?solo_activos=true`
+      : config.endpoints.usuarios();
+
+    const { data } = await apiClient.get(url);
+    return (data || []).map(normalizarUsuario);
+  }
+
+  async listarRoles() {
+    const { data } = await apiClient.get(
+      `${config.endpoints.usuarios()}/roles`
+    );
+
+    return (data || []).map(normalizarRol);
+  }
+
+  async obtenerUsuarioPorId(idUsuario) {
+    const { data } = await apiClient.get(
+      `${config.endpoints.usuarios()}/${idUsuario}`
+    );
+
+    return normalizarUsuario(data);
+  }
+
+  async crearUsuario({ nombre, apellido, correo, rolId }) {
+    const { data } = await apiClient.post(config.endpoints.usuarios(), {
+      nombre,
+      apellido,
+      correo,
+      rol_id: Number(rolId),
+    });
+
+    return normalizarUsuario(data);
+  }
+
+  async actualizarUsuario(idUsuario, datosUsuario) {
+    const payload = {};
+
+    if (datosUsuario.nombre !== undefined) {
+      payload.nombre = datosUsuario.nombre;
+    }
+
+    if (datosUsuario.apellido !== undefined) {
+      payload.apellido = datosUsuario.apellido;
+    }
+
+    if (datosUsuario.correo !== undefined) {
+      payload.correo = datosUsuario.correo;
+    }
+
+    if (datosUsuario.rolId !== undefined) {
+      payload.rol_id = Number(datosUsuario.rolId);
+    }
+
+    if (datosUsuario.activo !== undefined) {
+      payload.activo = Boolean(datosUsuario.activo);
+    }
+
+    if (datosUsuario.debeCambiarContrasena !== undefined) {
+      payload.debe_cambiar_contrasena = Boolean(
+        datosUsuario.debeCambiarContrasena
+      );
+    }
+
+    const { data } = await apiClient.put(
+      `${config.endpoints.usuarios()}/${idUsuario}`,
+      payload
+    );
+
+    return normalizarUsuario(data);
+  }
+
+  async cambiarEstadoUsuario(idUsuario, activo) {
+    const { data } = await apiClient.patch(
+      `${config.endpoints.usuarios()}/${idUsuario}/estado`,
+      {
+        activo: Boolean(activo),
+      }
+    );
+
+    return normalizarUsuario(data);
+  }
+
+  async regenerarContrasenaUsuario(idUsuario) {
+    const { data } = await apiClient.post(
+      `${config.endpoints.usuarios()}/${idUsuario}/regenerar-contrasena`,
+      {}
+    );
+
+    return normalizarUsuario(data);
+  }
+
+  async eliminarUsuario(idUsuario) {
+    const { data } = await apiClient.delete(
+      `${config.endpoints.usuarios()}/${idUsuario}`
     );
 
     return data;
