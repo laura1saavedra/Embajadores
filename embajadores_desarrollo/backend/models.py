@@ -7,7 +7,7 @@ Esquema: API_PROD
 """
 
 from sqlalchemy import (
-    Column, Integer, String, DateTime,
+    Boolean, Column, Integer, String, DateTime,
     ForeignKey, UniqueConstraint, Index
 )
 from sqlalchemy.orm import relationship
@@ -130,7 +130,23 @@ class Usuario(Base):
     nombre = Column(String(100), nullable=False)
     apellido = Column(String(100), nullable=False)
     correo = Column(String(255), nullable=False, unique=True, index=True)
-    contrasena = Column(String(255), nullable=True)
+    contrasena_hash = Column(String(255), nullable=True)
+    activo = Column(Boolean, nullable=False, default=True)
+    debe_cambiar_contrasena = Column(Boolean, nullable=False, default=True)
+    fecha_creacion = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+    fecha_actualizacion = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False
+    )
+    ultimo_login = Column(DateTime(timezone=True), nullable=True)
+    intentos_fallidos = Column(Integer, nullable=False, default=0)
+    bloqueado_hasta = Column(DateTime(timezone=True), nullable=True)
 
     rol_id = Column(
         Integer,
