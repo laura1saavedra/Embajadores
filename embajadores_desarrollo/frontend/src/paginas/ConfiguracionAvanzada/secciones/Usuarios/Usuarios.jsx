@@ -288,11 +288,56 @@ function Usuarios({ onVolver }) {
   const copiarContrasena = async () => {
     if (!usuarioContrasena?.contrasenaTemporal) return;
 
+    const contrasena = usuarioContrasena.contrasenaTemporal;
+
     try {
-      await navigator.clipboard.writeText(usuarioContrasena.contrasenaTemporal);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(contrasena);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = contrasena;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-9999px';
+        textarea.style.left = '-9999px';
+
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+
+        const copiado = document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        if (!copiado) {
+          throw new Error('No fue posible copiar la contraseña.');
+        }
+      }
+
       setMensajeContrasena('Contraseña copiada al portapapeles.');
     } catch {
-      setMensajeContrasena('No fue posible copiar la contraseña.');
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = contrasena;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-9999px';
+        textarea.style.left = '-9999px';
+
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+
+        const copiado = document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        setMensajeContrasena(
+          copiado
+            ? 'Contraseña copiada al portapapeles.'
+            : 'No fue posible copiar la contraseña.'
+        );
+      } catch {
+        setMensajeContrasena('No fue posible copiar la contraseña.');
+      }
     }
   };
 
