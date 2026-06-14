@@ -25,6 +25,15 @@ const config = {
   },
 
   endpoints: {
+    // Autenticacion
+    auth: {
+      login: () => `${config.API_URL}/auth/login`,
+      refresh: () => `${config.API_URL}/auth/refresh`,
+      me: () => `${config.API_URL}/auth/me`,
+      logout: () => `${config.API_URL}/auth/logout`,
+      cambiarContrasena: () => `${config.API_URL}/auth/cambiar-contrasena`,
+    },
+
     // Catalogos
     ciudades: () => `${config.API_URL}/ciudades`,
 
