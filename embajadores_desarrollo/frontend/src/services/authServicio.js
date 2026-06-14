@@ -46,7 +46,9 @@ class AuthServicio {
       remember_me: Boolean(rememberMe),
     });
 
-    return normalizarSesion(data);
+    const sesion = normalizarSesion(data);
+    apiClient.setAuthSession(sesion);
+    return sesion;
   }
 
   async refresh(refreshToken) {
@@ -54,10 +56,15 @@ class AuthServicio {
       refresh_token: refreshToken,
     });
 
-    return normalizarSesion(data);
+    const sesion = normalizarSesion(data);
+    apiClient.setAuthSession({
+      accessToken: sesion.accessToken,
+      usuario: sesion.usuario,
+    });
+    return sesion;
   }
 
-  async obtenerUsuarioActual(accessToken) {
+  async obtenerUsuarioActual(accessToken = apiClient.getAccessToken()) {
     const { data } = await apiClient.get(config.endpoints.auth.me(), {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -72,6 +79,7 @@ class AuthServicio {
       refresh_token: refreshToken,
     });
 
+    apiClient.clearAuthSession();
     return data;
   }
 
@@ -95,7 +103,9 @@ class AuthServicio {
       }
     );
 
-    return normalizarSesion(data);
+    const sesion = normalizarSesion(data);
+    apiClient.setAuthSession(sesion);
+    return sesion;
   }
 }
 

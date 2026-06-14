@@ -7,13 +7,35 @@
 
 import config from '../config/config.js';
 
+export const AUTH_STORAGE_KEYS = {
+  accessToken: 'embajadores_access_token',
+  refreshToken: 'embajadores_refresh_token',
+  usuario: 'embajadores_usuario',
+};
+
+const getStoredAccessToken = () => {
+  if (typeof window === 'undefined') return '';
+  return window.localStorage.getItem(AUTH_STORAGE_KEYS.accessToken) || '';
+};
+
+const clearStoredAuth = () => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(AUTH_STORAGE_KEYS.accessToken);
+  window.localStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);
+  window.localStorage.removeItem(AUTH_STORAGE_KEYS.usuario);
+};
+
 class ApiClient {
   constructor() {
     this.baseURL = config.API_URL;
   }
 
   async request(url, options = {}) {
-    const defaultHeaders = { 'Content-Type': 'application/json' };
+    const token = getStoredAccessToken();
+    const defaultHeaders = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
 
     const fetchConfig = {
       ...options,
@@ -22,9 +44,16 @@ class ApiClient {
 
     try {
       const response = await fetch(url, fetchConfig);
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json')
+        ? await response.json()
+        : null;
 
       if (!response.ok) {
+        if (response.status === 401) {
+          clearStoredAuth();
+        }
+
         const detailRaw = data?.error ?? data?.detail;
         let mensaje;
         if (!detailRaw) {
@@ -78,6 +107,51 @@ class ApiClient {
 
   async delete(url, options = {}) {
     return this.request(url, { ...options, method: 'DELETE' });
+  }
+
+  setAuthSession({ accessToken, refreshToken, usuario }) {
+    if (typeof window === 'undefined') return;
+
+    if (accessToken) {
+      window.localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, accessToken);
+    }
+
+    if (refreshToken) {
+      window.localStorage.setItem(AUTH_STORAGE_KEYS.refreshToken, refreshToken);
+    }
+
+    if (usuario) {
+      window.localStorage.setItem(
+        AUTH_STORAGE_KEYS.usuario,
+        JSON.stringify(usuario)
+      );
+    }
+  }
+
+  clearAuthSession() {
+    clearStoredAuth();
+  }
+
+  getAccessToken() {
+    return getStoredAccessToken();
+  }
+
+  getRefreshToken() {
+    if (typeof window === 'undefined') return '';
+    return window.localStorage.getItem(AUTH_STORAGE_KEYS.refreshToken) || '';
+  }
+
+  getStoredUser() {
+    if (typeof window === 'undefined') return null;
+
+    const usuario = window.localStorage.getItem(AUTH_STORAGE_KEYS.usuario);
+    if (!usuario) return null;
+
+    try {
+      return JSON.parse(usuario);
+    } catch {
+      return null;
+    }
   }
 }
 
