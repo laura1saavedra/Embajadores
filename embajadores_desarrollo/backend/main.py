@@ -84,6 +84,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # ── Registrar routers ─────────────────────────────────────────────────────────
+from routes.auth import auth_router
 from routes.ciudades import ciudades_router
 from routes.cavs import cavs_router
 from routes.usuarios import usuarios_router
@@ -95,6 +96,7 @@ from routes.tipos_falla import tipos_falla_router
 from routes.masivos import masivos_router
 from services.masivo_service import MasivoService
 
+app.include_router(auth_router, prefix="/api/auth", tags=["Autenticacion"])
 app.include_router(ciudades_router, prefix="/api/ciudades", tags=["Ciudades"])
 app.include_router(cavs_router, prefix="/api/cavs", tags=["CAV"])
 app.include_router(usuarios_router, prefix="/api/usuarios", tags=["Usuarios"])
@@ -106,7 +108,7 @@ app.include_router(tipos_falla_router, prefix="/api/tipos-falla", tags=["Tipos d
 app.include_router(masivos_router, prefix="/api/masivos", tags=["Incidentes Masivos"])
 
 logger.info(
-    "Routers registrados: ciudades, cavs, usuarios, incidentes, whatsapp, aplicaciones, tipos-falla, masivos"
+    "Routers registrados: auth, ciudades, cavs, usuarios, incidentes, whatsapp, aplicaciones, tipos-falla, masivos"
 )
 
 
