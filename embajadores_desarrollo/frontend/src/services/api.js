@@ -25,6 +25,43 @@ const clearStoredAuth = () => {
   window.localStorage.removeItem(AUTH_STORAGE_KEYS.usuario);
 };
 
+const traducirCampo = (campo) => {
+  const campos = {
+    nueva_contrasena: 'La nueva contrasena',
+    confirmar_contrasena: 'La confirmacion de contrasena',
+    contrasena_actual: 'La contrasena actual',
+    contrasena: 'La contrasena',
+    correo: 'El correo',
+  };
+
+  return campos[campo] || 'El campo';
+};
+
+const normalizarMensajeValidacion = (detalle) => {
+  if (!Array.isArray(detalle)) return null;
+
+  const mensajes = detalle.map((item) => {
+    const campo = Array.isArray(item.loc)
+      ? item.loc[item.loc.length - 1]
+      : '';
+
+    if (item.type === 'string_too_short') {
+      const minimo = item.ctx?.min_length;
+      if (minimo) {
+        return `${traducirCampo(campo)} debe tener al menos ${minimo} caracteres.`;
+      }
+    }
+
+    if (item.type === 'missing') {
+      return `${traducirCampo(campo)} es obligatorio.`;
+    }
+
+    return item.msg || 'Revisa los datos ingresados.';
+  });
+
+  return [...new Set(mensajes)].join(' ');
+};
+
 class ApiClient {
   constructor() {
     this.baseURL = config.API_URL;
@@ -60,6 +97,8 @@ class ApiClient {
           mensaje = `Error ${response.status}`;
         } else if (typeof detailRaw === 'string') {
           mensaje = detailRaw;
+        } else if (Array.isArray(detailRaw)) {
+          mensaje = normalizarMensajeValidacion(detailRaw) || `Error ${response.status}`;
         } else if (typeof detailRaw === 'object') {
           mensaje = detailRaw.message || detailRaw.error || JSON.stringify(detailRaw);
         } else {
