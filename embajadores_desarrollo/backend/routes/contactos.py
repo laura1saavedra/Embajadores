@@ -23,12 +23,15 @@ class ContactoActualizar(BaseModel):
 
 
 def _contacto_a_dict(c: Contacto) -> dict:
+    destino = c.token_wp or ""
+    es_grupo = destino.endswith("@g.us")
+
     return {
         "id_contacto":     c.id_contacto,
-        "nombre_contacto": c.nombre_contacto,
-        "numero_celular":  c.numero_celular,
+        "nombre_contacto": c.nombre_grupo,
+        "numero_celular":  None if es_grupo else destino,
         "token_wp":        c.token_wp,
-        "tipo":            c.tipo or 'persona',
+        "tipo":            "grupo" if es_grupo else "persona",
     }
 
 
@@ -36,7 +39,7 @@ def _contacto_a_dict(c: Contacto) -> dict:
 def listar_contactos():
     try:
         with get_db_session() as db:
-            contactos = db.query(Contacto).order_by(Contacto.tipo, Contacto.nombre_contacto).all()
+            contactos = db.query(Contacto).order_by(Contacto.nombre_grupo).all()
             return [_contacto_a_dict(c) for c in contactos]
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -47,13 +50,23 @@ def crear_contacto(body: ContactoCrear):
     try:
         with get_db_session() as db:
             tipo_val = body.tipo if body.tipo in ('persona', 'grupo') else 'persona'
-            if tipo_val == "persona" and not body.numero_celular : 
-                raise ValueError ("El numero celular es obligatorio caundo el tipo es persona")
+            destino = body.token_wp
+
+            if tipo_val == "persona":
+                destino = body.numero_celular or body.token_wp
+                if not destino:
+                    raise ValueError("El numero WhatsApp es obligatorio cuando el tipo es persona")
+
+            if tipo_val == "grupo":
+                destino = body.token_wp
+                if not destino:
+                    raise ValueError("El JID del grupo es obligatorio")
+                if not destino.endswith("@g.us"):
+                    raise ValueError("El JID del grupo debe terminar en @g.us")
+
             nuevo = Contacto(
-                nombre_contacto=body.nombre_contacto,
-                numero_celular=body.numero_celular,
-                token_wp=body.token_wp,
-                tipo=tipo_val,
+                nombre_grupo=body.nombre_contacto,
+                token_wp=destino,
             )
             db.add(nuevo)
             db.commit()
@@ -71,13 +84,27 @@ def actualizar_contacto(id_contacto: int, body: ContactoActualizar):
             if not contacto:
                 return JSONResponse(status_code=404, content={"error": "Contacto no encontrado"})
             if body.nombre_contacto is not None:
-                contacto.nombre_contacto = body.nombre_contacto
-            if body.numero_celular is not None:
-                contacto.numero_celular = body.numero_celular
-            if body.token_wp is not None:
+                contacto.nombre_grupo = body.nombre_contacto
+
+            tipo_val = body.tipo if body.tipo in ('persona', 'grupo') else None
+
+            if tipo_val == "persona":
+                destino = body.numero_celular or body.token_wp
+                if not destino:
+                    raise ValueError("El numero WhatsApp es obligatorio cuando el tipo es persona")
+                contacto.token_wp = destino
+            elif tipo_val == "grupo":
+                destino = body.token_wp
+                if not destino:
+                    raise ValueError("El JID del grupo es obligatorio")
+                if not destino.endswith("@g.us"):
+                    raise ValueError("El JID del grupo debe terminar en @g.us")
+                contacto.token_wp = destino
+            elif body.token_wp is not None:
                 contacto.token_wp = body.token_wp
-            if body.tipo is not None and body.tipo in ('persona', 'grupo'):
-                contacto.tipo = body.tipo
+            elif body.numero_celular is not None:
+                contacto.token_wp = body.numero_celular
+
             db.commit()
             db.refresh(contacto)
             return _contacto_a_dict(contacto)
