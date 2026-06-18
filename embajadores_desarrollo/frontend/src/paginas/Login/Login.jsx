@@ -58,6 +58,16 @@ function Login() {
     setCargando(true);
 
     try {
+      if (!formLogin.correo.trim()) {
+        setMensajeError('Ingresa tu correo corporativo para continuar.');
+        return;
+      }
+
+      if (!formLogin.contrasena) {
+        setMensajeError('Ingresa tu contrasena para continuar.');
+        return;
+      }
+
       const sesion = await login({
         correo: formLogin.correo,
         contrasena: formLogin.contrasena,
@@ -94,6 +104,16 @@ function Login() {
         return;
       }
 
+      if (!formCambio.nuevaContrasena) {
+        setMensajeError('Ingresa tu nueva contrasena para continuar.');
+        return;
+      }
+
+      if (!formCambio.confirmarContrasena) {
+        setMensajeError('Confirma tu nueva contrasena para continuar.');
+        return;
+      }
+
       await cambiarContrasena({
         contrasenaActual,
         nuevaContrasena: formCambio.nuevaContrasena,
@@ -122,8 +142,10 @@ function Login() {
         </header>
 
         <section className="login-password-shell">
-          <form className="login-card login-card--password" onSubmit={enviarCambioContrasena}>
-            <div className="login-card__icon" aria-hidden="true">🔒</div>
+          <form className="login-card login-card--password" onSubmit={enviarCambioContrasena} noValidate>
+            <div className="login-card__icon" aria-hidden="true">
+              <span className="login-lock-icon" />
+            </div>
             <h1>Cambiar contraseña</h1>
             <p>Por seguridad, debes cambiar tu contraseña antes de continuar usando la plataforma.</p>
 
@@ -239,8 +261,10 @@ function Login() {
       </section>
 
       <section className="login-form-panel">
-        <form className="login-card" onSubmit={enviarLogin}>
-          <div className="login-card__icon" aria-hidden="true">🔒</div>
+        <form className="login-card" onSubmit={enviarLogin} noValidate>
+          <div className="login-card__icon" aria-hidden="true">
+            <span className="login-lock-icon" />
+          </div>
           <h1>Iniciar sesión</h1>
           <p>Ingresa tus credenciales para continuar.</p>
 
@@ -304,9 +328,6 @@ function Login() {
           </button>
         </form>
 
-        <footer className="login-footer">
-          © 2024 Todos los derechos reservados.
-        </footer>
       </section>
     </main>
   );

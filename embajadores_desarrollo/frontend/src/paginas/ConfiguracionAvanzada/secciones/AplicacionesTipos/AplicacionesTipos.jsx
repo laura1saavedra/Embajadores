@@ -732,6 +732,7 @@ function AplicacionesTipos({ onVolver }) {
                       Cancelar
                     </button>
                   )}
+
                 </div>
               </>
             )}

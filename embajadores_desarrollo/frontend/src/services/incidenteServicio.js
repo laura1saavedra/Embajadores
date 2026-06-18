@@ -194,6 +194,10 @@ const prepararActualizar = (datos) => {
         : null;
   }
 
+  if (datos.estado !== undefined && datos.estado !== '') {
+    payload.estado = datos.estado;
+  }
+
   if (Array.isArray(datos.filasAplicaciones)) {
     payload.aplicaciones_afectadas = datos.filasAplicaciones.map((f) => ({
       aplicacion_id: parseInt(f.aplicacionId, 10),

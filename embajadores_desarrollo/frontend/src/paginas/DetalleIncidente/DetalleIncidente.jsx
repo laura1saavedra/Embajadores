@@ -5,33 +5,134 @@ import LayoutPrincipal from '../../componentes/layout/LayoutPrincipal/LayoutPrin
 import ContenedorPagina from '../../componentes/layout/ContenedorPagina/ContenedorPagina';
 import EstadoIncidente from '../../componentes/incidentes/EstadoIncidente/EstadoIncidente';
 import SelectBuscable from '../../componentes/incidentes/SelectBuscable/SelectBuscable';
+import { useAuth } from '../../context/AuthContext';
 import incidenteServicio from '../../services/incidenteServicio';
+import { PERMISOS, usuarioTienePermiso } from '../../utils/permisos';
 
 import './DetalleIncidentes.css';
+
+const FORM_INICIAL = {
+  estado: 'abierto',
+  ciudadId: '',
+  cavId: '',
+  usuariosAfectados: '',
+  usuariosTotalidad: '',
+};
+
+const crearFila = (datos = {}) => ({
+  id: datos.id || Date.now() + Math.random(),
+  aplicacionId: datos.aplicacionId || '',
+  tipoFallaId: datos.tipoFallaId || '',
+});
 
 function DetalleIncidente() {
   const { idIncidente } = useParams();
   const navegar = useNavigate();
+  const { usuario } = useAuth();
 
   const [incidente, setIncidente] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [mensajeError, setMensajeError] = useState('');
 
-  const [editandoEstado, setEditandoEstado] = useState(false);
-  const [nuevoEstado, setNuevoEstado] = useState('');
-  const [guardandoEstado, setGuardandoEstado] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [formulario, setFormulario] = useState(FORM_INICIAL);
+  const [filasAplicaciones, setFilasAplicaciones] = useState([crearFila()]);
+  const [ciudades, setCiudades] = useState([]);
+  const [cavs, setCavs] = useState([]);
+  const [aplicaciones, setAplicaciones] = useState([]);
+  const [tiposFalla, setTiposFalla] = useState([]);
+  const [guardando, setGuardando] = useState(false);
+  const [cerrando, setCerrando] = useState(false);
+
   const [eliminando, setEliminando] = useState(false);
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState(false);
 
-  const rolUsuario = localStorage.getItem('rolUsuario') || 'Embajador';
-  const esAdministrador = rolUsuario === 'Administrador';
-  const esEmbajador = rolUsuario === 'Embajador';
+  const esAdministrador = (usuario?.rolNombre ?? '')
+    .toLowerCase()
+    .includes('admin');
+  const puedeEditar = esAdministrador && usuarioTienePermiso(
+    usuario,
+    PERMISOS.EDITAR_INCIDENTE
+  );
+  const puedeCerrar = usuarioTienePermiso(
+    usuario,
+    PERMISOS.CERRAR_INCIDENTE
+  );
+  const puedeEliminar = esAdministrador && incidente?.estado === 'cerrado';
 
-  const puedeCambiarEstado = esAdministrador || esEmbajador;
-  const puedeEliminar = esAdministrador;
+  const sincronizarFormulario = (datos) => {
+    setFormulario({
+      estado: datos.estado || 'abierto',
+      ciudadId: datos.ciudadId || '',
+      cavId: datos.cavId || '',
+      usuariosAfectados:
+        datos.usuariosAfectados !== null && datos.usuariosAfectados !== undefined
+          ? String(datos.usuariosAfectados)
+          : '',
+      usuariosTotalidad:
+        datos.usuariosTotalidad !== null && datos.usuariosTotalidad !== undefined
+          ? String(datos.usuariosTotalidad)
+          : '',
+    });
+
+    const filas = (datos.aplicacionesAfectadas || [])
+      .filter((item) => !item.perteneceAMasivo)
+      .map((item) =>
+        crearFila({
+          id: item.idAplicacionesAfectados || undefined,
+          aplicacionId: item.aplicacionId,
+          tipoFallaId: item.tipoFallaId,
+        })
+      );
+
+    setFilasAplicaciones(filas.length > 0 ? filas : [crearFila()]);
+  };
 
   useEffect(() => {
     cargarDetalle();
   }, [idIncidente]);
+
+  useEffect(() => {
+    const cargarCatalogos = async () => {
+      try {
+        const [ciudadesResp, aplicacionesResp, tiposResp] = await Promise.all([
+          incidenteServicio.obtenerCiudades(),
+          incidenteServicio.obtenerAplicaciones(),
+          incidenteServicio.obtenerTiposFalla(),
+        ]);
+
+        setCiudades(ciudadesResp);
+        setAplicaciones(aplicacionesResp);
+        setTiposFalla(tiposResp);
+      } catch {
+        setCiudades([]);
+        setAplicaciones([]);
+        setTiposFalla([]);
+      }
+    };
+
+    if (puedeEditar) {
+      cargarCatalogos();
+    }
+  }, [puedeEditar]);
+
+  useEffect(() => {
+    if (!formulario.ciudadId) {
+      setCavs([]);
+      return;
+    }
+
+    incidenteServicio
+      .obtenerCavsPorCiudad(formulario.ciudadId)
+      .then(setCavs)
+      .catch(() => setCavs([]));
+  }, [formulario.ciudadId]);
+
+  useEffect(() => {
+    if (!puedeEliminar) {
+      setConfirmandoEliminar(false);
+    }
+  }, [puedeEliminar]);
 
   const cargarDetalle = async () => {
     try {
@@ -47,27 +148,19 @@ function DetalleIncidente() {
         .filter((item) => item.estadoNuevo === 'cerrado')
         .sort((a, b) => new Date(b.fechaCambio) - new Date(a.fechaCambio))[0];
 
-      setIncidente({
+      const detalle = {
         ...respuesta,
         fechaHoraCierre: cierre?.fechaCambio || null,
-      });
+      };
 
+      setIncidente(detalle);
+      sincronizarFormulario(detalle);
     } catch (error) {
       setMensajeError(error.message || 'No fue posible cargar el incidente.');
     } finally {
       setCargando(false);
     }
   };
-
-  const opcionesEstado = useMemo(() => {
-    if (!incidente) return [];
-
-    if (incidente.estado === 'abierto') {
-      return [{ valor: 'cerrado', etiqueta: 'Cerrar incidente' }];
-    }
-
-    return [];
-  }, [incidente]);
 
   const aplicacionesAfectadas = useMemo(() => {
     if (!Array.isArray(incidente?.aplicacionesAfectadas)) return [];
@@ -77,32 +170,179 @@ function DetalleIncidente() {
     );
   }, [incidente]);
 
-  const guardarEstado = async () => {
-    if (!nuevoEstado) return;
+  const opcionesEstado = [
+    { valor: 'abierto', etiqueta: 'Abierto' },
+    ...(puedeCerrar ? [{ valor: 'cerrado', etiqueta: 'Cerrado' }] : []),
+  ];
+
+  const opcionesCiudades = ciudades.map((c) => ({
+    valor: c.idCiudad,
+    etiqueta: c.nombreCiudad,
+  }));
+
+  const opcionesCavs = cavs.map((c) => ({
+    valor: c.idCav,
+    etiqueta: c.nombreCav,
+  }));
+
+  const opcionesAplicaciones = aplicaciones.map((a) => ({
+    valor: a.id,
+    etiqueta: a.nombre,
+  }));
+
+  const opcionesTiposFalla = tiposFalla.map((t) => ({
+    valor: t.id,
+    etiqueta: t.nombre,
+  }));
+
+  const manejarCambio = (evento) => {
+    const { name, value } = evento.target;
+
+    setFormulario((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === 'ciudadId' ? { cavId: '' } : {}),
+    }));
+    setMensajeError('');
+  };
+
+  const manejarCambioFila = (filaId, campo, valor) => {
+    setFilasAplicaciones((prev) =>
+      prev.map((fila) =>
+        fila.id === filaId ? { ...fila, [campo]: valor } : fila
+      )
+    );
+    setMensajeError('');
+  };
+
+  const agregarFila = () => {
+    setFilasAplicaciones((prev) => [...prev, crearFila()]);
+  };
+
+  const quitarFila = (filaId) => {
+    if (filasAplicaciones.length === 1) return;
+    setFilasAplicaciones((prev) => prev.filter((fila) => fila.id !== filaId));
+  };
+
+  const cancelarEdicion = () => {
+    if (incidente) {
+      sincronizarFormulario(incidente);
+    }
+    setEditando(false);
+    setMensajeError('');
+  };
+
+  const validarEdicion = () => {
+    if (!formulario.estado || !formulario.ciudadId || !formulario.cavId) {
+      return 'Completa estado, ciudad y CAV.';
+    }
+
+    if (formulario.usuariosAfectados === '') {
+      return 'El campo usuarios afectados es obligatorio.';
+    }
+
+    const usuariosAfectados = Number(formulario.usuariosAfectados);
+    const usuariosTotalidad =
+      formulario.usuariosTotalidad !== ''
+        ? Number(formulario.usuariosTotalidad)
+        : null;
+
+    if (usuariosAfectados < 0) {
+      return 'Los usuarios afectados no pueden ser negativos.';
+    }
+
+    if (usuariosTotalidad !== null && usuariosAfectados > usuariosTotalidad) {
+      return 'Los usuarios afectados no pueden ser mayores que los usuarios totales.';
+    }
+
+    const filasValidas = filasAplicaciones.filter(
+      (fila) => fila.aplicacionId && fila.tipoFallaId
+    );
+
+    if (filasValidas.length === 0) {
+      return 'Selecciona al menos una aplicacion y un tipo de falla.';
+    }
+
+    const combinaciones = new Set();
+
+    for (const fila of filasValidas) {
+      const clave = `${fila.aplicacionId}-${fila.tipoFallaId}`;
+
+      if (combinaciones.has(clave)) {
+        return 'No se puede registrar la misma combinacion de aplicacion y tipo de falla mas de una vez.';
+      }
+
+      combinaciones.add(clave);
+    }
+
+    return '';
+  };
+
+  const guardarEdicion = async () => {
+    if (!puedeEditar) {
+      setMensajeError('Solo un administrador con permiso puede editar incidentes.');
+      setEditando(false);
+      return;
+    }
+
+    if (formulario.estado === 'cerrado' && incidente.estado !== 'cerrado' && !puedeCerrar) {
+      setMensajeError('No tienes permiso para cerrar incidentes.');
+      return;
+    }
+
+    const errorFormulario = validarEdicion();
+    if (errorFormulario) {
+      setMensajeError(errorFormulario);
+      return;
+    }
 
     try {
-      setGuardandoEstado(true);
+      setGuardando(true);
       setMensajeError('');
 
-      await incidenteServicio.actualizarEstadoIncidente(
-        idIncidente,
-        nuevoEstado
-      );
+      await incidenteServicio.editarIncidente(idIncidente, {
+        ...formulario,
+        filasAplicaciones: filasAplicaciones.filter(
+          (fila) => fila.aplicacionId && fila.tipoFallaId
+        ),
+      });
 
-      setEditandoEstado(false);
-      setNuevoEstado('');
+      setEditando(false);
       await cargarDetalle();
     } catch (error) {
-      setMensajeError(error.message || 'No fue posible actualizar el estado.');
+      setMensajeError(error.message || 'No fue posible editar el incidente.');
     } finally {
-      setGuardandoEstado(false);
+      setGuardando(false);
+    }
+  };
+
+  const cerrarIncidente = async () => {
+    if (!puedeCerrar) {
+      setMensajeError('No tienes permiso para cerrar incidentes.');
+      return;
+    }
+
+    try {
+      setCerrando(true);
+      setMensajeError('');
+      setEditando(false);
+      setConfirmandoEliminar(false);
+
+      await incidenteServicio.actualizarEstadoIncidente(idIncidente, 'cerrado');
+      await cargarDetalle();
+    } catch (error) {
+      setMensajeError(error.message || 'No fue posible cerrar el incidente.');
+    } finally {
+      setCerrando(false);
     }
   };
 
   const eliminarIncidente = async () => {
-    const confirmar = window.confirm('¿Deseas eliminar este incidente?');
-
-    if (!confirmar) return;
+    if (!puedeEliminar) {
+      setConfirmandoEliminar(false);
+      setMensajeError('Solo un administrador puede eliminar incidentes.');
+      return;
+    }
 
     try {
       setEliminando(true);
@@ -115,7 +355,20 @@ function DetalleIncidente() {
       setMensajeError(error.message || 'No fue posible eliminar el incidente.');
     } finally {
       setEliminando(false);
+      setConfirmandoEliminar(false);
     }
+  };
+
+  const formatearFecha = (fecha) => {
+    if (!fecha) return 'Sin registrar';
+
+    return new Intl.DateTimeFormat('es-CO', {
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(fecha));
   };
 
   if (cargando) {
@@ -135,24 +388,12 @@ function DetalleIncidente() {
       <LayoutPrincipal>
         <ContenedorPagina>
           <div className="detalle-incidente__alerta">
-            {mensajeError || 'No se encontró el incidente.'}
+            {mensajeError || 'No se encontro el incidente.'}
           </div>
         </ContenedorPagina>
       </LayoutPrincipal>
     );
   }
-
-  const formatearFecha = (fecha) => {
-    if (!fecha) return 'Sin registrar';
-
-    return new Intl.DateTimeFormat('es-CO', {
-      day: 'numeric',
-      month: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(new Date(fecha));
-  };
 
   return (
     <LayoutPrincipal>
@@ -173,7 +414,7 @@ function DetalleIncidente() {
             </span>
           </div>
         }
-        descripcion="Aquí puedes revisar la información completa del incidente y su historial."
+        descripcion="Aqui puedes revisar la informacion completa del incidente y su historial."
       >
         {mensajeError && (
           <div className="detalle-incidente__alerta">
@@ -214,32 +455,47 @@ function DetalleIncidente() {
         </div>
 
         <div className="detalle-incidente__fechas">
-            <div className="detalle-incidente__fecha-item">
-              <span>Fecha generación</span>
-              <strong>{formatearFecha(incidente.fechaHoraReporte)}</strong>
-            </div>
-
-            {incidente.estado === 'cerrado' && (
-              <>
-                <div className="detalle-incidente__fecha-divisor" />
-
-                <div className="detalle-incidente__fecha-item">
-                  <span>Fecha cierre</span>
-                  <strong>{formatearFecha(incidente.fechaHoraCierre)}</strong>
-                </div>
-              </>
-            )}
+          <div className="detalle-incidente__fecha-item">
+            <span>Fecha generacion</span>
+            <strong>{formatearFecha(incidente.fechaHoraReporte)}</strong>
           </div>
 
-        {(puedeCambiarEstado || puedeEliminar) && (
+          {incidente.estado === 'cerrado' && (
+            <>
+              <div className="detalle-incidente__fecha-divisor" />
+
+              <div className="detalle-incidente__fecha-item">
+                <span>Fecha cierre</span>
+                <strong>{formatearFecha(incidente.fechaHoraCierre)}</strong>
+              </div>
+            </>
+          )}
+        </div>
+
+        {(puedeCerrar || puedeEditar || puedeEliminar) && (
           <div className="detalle-incidente__barra-acciones">
-            {puedeCambiarEstado && incidente.estado !== 'cerrado' && (
+            {puedeCerrar && incidente.estado !== 'cerrado' && (
               <button
                 type="button"
                 className="detalle-incidente__boton detalle-incidente__boton--principal"
-                onClick={() => setEditandoEstado((prev) => !prev)}
+                onClick={cerrarIncidente}
+                disabled={cerrando || guardando}
               >
-                Cambiar estado
+                {cerrando ? 'Cerrando...' : 'Cerrar incidente'}
+              </button>
+            )}
+
+            {puedeEditar && (
+              <button
+                type="button"
+                className="detalle-incidente__boton detalle-incidente__boton--secundario"
+                onClick={() => {
+                  setConfirmandoEliminar(false);
+                  setEditando((prev) => !prev);
+                }}
+                disabled={guardando}
+              >
+                {editando ? 'Ocultar edicion' : 'Editar incidente'}
               </button>
             )}
 
@@ -247,7 +503,11 @@ function DetalleIncidente() {
               <button
                 type="button"
                 className="detalle-incidente__boton detalle-incidente__boton--peligro"
-                onClick={eliminarIncidente}
+                onClick={() => {
+                  setMensajeError('');
+                  setEditando(false);
+                  setConfirmandoEliminar(true);
+                }}
                 disabled={eliminando}
               >
                 {eliminando ? 'Eliminando...' : 'Eliminar incidente'}
@@ -256,21 +516,184 @@ function DetalleIncidente() {
           </div>
         )}
 
-        {editandoEstado && (
+        {puedeEliminar && confirmandoEliminar && (
+          <div className="detalle-incidente__confirmacion-eliminar">
+            <div className="detalle-incidente__confirmacion-texto">
+              <strong>Eliminar incidente #{incidente.idIncidente}</strong>
+              <span>
+                Esta accion no se puede deshacer. Solo se pueden eliminar incidentes cerrados.
+              </span>
+            </div>
+
+            <div className="detalle-incidente__confirmacion-acciones">
+              <button
+                type="button"
+                className="detalle-incidente__boton detalle-incidente__boton--secundario"
+                onClick={() => setConfirmandoEliminar(false)}
+                disabled={eliminando}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                className="detalle-incidente__boton detalle-incidente__boton--peligro"
+                onClick={eliminarIncidente}
+                disabled={eliminando}
+              >
+                {eliminando ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {puedeEditar && editando && (
           <section className="detalle-incidente__bloque detalle-incidente__bloque--estado">
-            <h2 className="detalle-incidente__subtitulo">Cambiar estado</h2>
+            <h2 className="detalle-incidente__subtitulo">Editar incidente</h2>
 
             <div className="detalle-incidente__grid-edicion">
               <div className="detalle-incidente__campo-edicion">
                 <SelectBuscable
-                  id="nuevoEstado"
-                  label="Nuevo estado"
+                  id="estado"
+                  label="Estado"
                   opciones={opcionesEstado}
-                  valor={nuevoEstado}
-                  onChange={(evento) => setNuevoEstado(evento.target.value)}
+                  valor={formulario.estado}
+                  onChange={manejarCambio}
                   placeholder="Seleccionar estado"
                   placeholderBusqueda="Buscar estado..."
+                  disabled={guardando}
                 />
+              </div>
+
+              <div className="detalle-incidente__campo-edicion">
+                <SelectBuscable
+                  id="ciudadId"
+                  label="Ciudad"
+                  opciones={opcionesCiudades}
+                  valor={formulario.ciudadId}
+                  onChange={manejarCambio}
+                  placeholder="Seleccionar ciudad"
+                  placeholderBusqueda="Buscar ciudad..."
+                  disabled={guardando}
+                />
+              </div>
+
+              <div className="detalle-incidente__campo-edicion">
+                <SelectBuscable
+                  id="cavId"
+                  label="CAV afectado"
+                  opciones={opcionesCavs}
+                  valor={formulario.cavId}
+                  onChange={manejarCambio}
+                  placeholder={
+                    formulario.ciudadId
+                      ? 'Seleccionar CAV'
+                      : 'Primero elija ciudad'
+                  }
+                  placeholderBusqueda="Buscar CAV..."
+                  disabled={guardando || !formulario.ciudadId}
+                />
+              </div>
+
+              <div className="detalle-incidente__campo-edicion">
+                <label htmlFor="usuariosAfectados">Usuarios afectados</label>
+                <input
+                  id="usuariosAfectados"
+                  name="usuariosAfectados"
+                  type="number"
+                  min="0"
+                  value={formulario.usuariosAfectados}
+                  onChange={manejarCambio}
+                  disabled={guardando}
+                />
+              </div>
+
+              <div className="detalle-incidente__campo-edicion">
+                <label htmlFor="usuariosTotalidad">Usuarios totales</label>
+                <input
+                  id="usuariosTotalidad"
+                  name="usuariosTotalidad"
+                  type="number"
+                  min="0"
+                  value={formulario.usuariosTotalidad}
+                  onChange={manejarCambio}
+                  disabled={guardando}
+                />
+              </div>
+            </div>
+
+            <div className="detalle-incidente__edicion-apps">
+              <div className="detalle-incidente__edicion-apps-header">
+                <h3>Aplicaciones afectadas y tipo de falla</h3>
+                <button
+                  type="button"
+                  className="detalle-incidente__boton detalle-incidente__boton--secundario"
+                  onClick={agregarFila}
+                  disabled={guardando}
+                >
+                  + Agregar
+                </button>
+              </div>
+
+              <div className="detalle-incidente__tabla-edicion-head">
+                <span>#</span>
+                <span>Aplicacion</span>
+                <span>Tipo de falla</span>
+                <span />
+              </div>
+
+              <div className="detalle-incidente__tabla-edicion-body">
+                {filasAplicaciones.map((fila, index) => (
+                  <div key={fila.id} className="detalle-incidente__fila-edicion">
+                    <span className="detalle-incidente__fila-numero">
+                      {index + 1}
+                    </span>
+
+                    <SelectBuscable
+                      id={`app-${fila.id}`}
+                      valor={fila.aplicacionId}
+                      opciones={opcionesAplicaciones}
+                      onChange={(evento) =>
+                        manejarCambioFila(
+                          fila.id,
+                          'aplicacionId',
+                          evento.target.value
+                        )
+                      }
+                      placeholder="Seleccione aplicacion"
+                      placeholderBusqueda="Buscar aplicacion..."
+                      sinResultadosTexto="Sin aplicaciones"
+                      disabled={guardando}
+                    />
+
+                    <SelectBuscable
+                      id={`tipo-${fila.id}`}
+                      valor={fila.tipoFallaId}
+                      opciones={opcionesTiposFalla}
+                      onChange={(evento) =>
+                        manejarCambioFila(
+                          fila.id,
+                          'tipoFallaId',
+                          evento.target.value
+                        )
+                      }
+                      placeholder="Seleccione tipo de falla"
+                      placeholderBusqueda="Buscar tipo de falla..."
+                      sinResultadosTexto="Sin tipos de falla"
+                      disabled={guardando}
+                    />
+
+                    <button
+                      type="button"
+                      className="detalle-incidente__boton-quitar"
+                      onClick={() => quitarFila(fila.id)}
+                      disabled={guardando || filasAplicaciones.length === 1}
+                      title="Quitar fila"
+                    >
+                      x
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -278,10 +701,8 @@ function DetalleIncidente() {
               <button
                 type="button"
                 className="detalle-incidente__boton detalle-incidente__boton--secundario"
-                onClick={() => {
-                  setEditandoEstado(false);
-                  setNuevoEstado('');
-                }}
+                onClick={cancelarEdicion}
+                disabled={guardando}
               >
                 Cancelar
               </button>
@@ -289,10 +710,10 @@ function DetalleIncidente() {
               <button
                 type="button"
                 className="detalle-incidente__boton detalle-incidente__boton--principal"
-                onClick={guardarEstado}
-                disabled={guardandoEstado || !nuevoEstado}
+                onClick={guardarEdicion}
+                disabled={guardando}
               >
-                {guardandoEstado ? 'Guardando...' : 'Guardar cambios'}
+                {guardando ? 'Guardando...' : 'Guardar cambios'}
               </button>
             </div>
           </section>
@@ -308,7 +729,7 @@ function DetalleIncidente() {
               <table className="detalle-incidente__tabla-apps">
                 <thead>
                   <tr>
-                    <th>Aplicación</th>
+                    <th>Aplicacion</th>
                     <th>Tipo de falla</th>
                   </tr>
                 </thead>
@@ -321,7 +742,7 @@ function DetalleIncidente() {
                         `${item.aplicacionId}-${item.tipoFallaId}-${index}`
                       }
                     >
-                      <td>{item.aplicacionNombre || 'Sin aplicación'}</td>
+                      <td>{item.aplicacionNombre || 'Sin aplicacion'}</td>
                       <td>{item.tipoFallaNombre || 'Sin tipo de falla'}</td>
                     </tr>
                   ))}

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import LayoutPrincipal from '../../componentes/layout/LayoutPrincipal/LayoutPrincipal';
 import ContenedorPagina from '../../componentes/layout/ContenedorPagina/ContenedorPagina';
 import SelectBuscable from '../../componentes/incidentes/SelectBuscable/SelectBuscable';
 import EstadoIncidente from '../../componentes/incidentes/EstadoIncidente/EstadoIncidente';
+import { useAuth } from '../../context/AuthContext';
+import { PERMISOS, usuarioTienePermiso } from '../../utils/permisos';
 
 import masivoServicio from '../../services/masivoServicio';
 
@@ -20,6 +22,8 @@ const FORMATO_FECHA = new Intl.DateTimeFormat('es-CO', {
 function DetalleMasivo() {
   const { idMasivo } = useParams();
   const navegar = useNavigate();
+  const location = useLocation();
+  const { usuario } = useAuth();
 
   const [masivo, setMasivo] = useState(null);
   const [filtroCiudad, setFiltroCiudad] = useState('');
@@ -30,6 +34,12 @@ function DetalleMasivo() {
   const [paginaActual, setPaginaActual] = useState(1);
 
   const tablaRef = useRef(null);
+
+  const puedeCerrarMasivo = usuarioTienePermiso(
+    usuario,
+    PERMISOS.CERRAR_INCIDENTE_MASIVO
+  );
+  const volverADiasActivos = location.state?.origen === 'dias-activos';
 
   useEffect(() => {
     cargarDetalle();
@@ -51,6 +61,12 @@ function DetalleMasivo() {
   };
 
   const cerrarMasivo = async () => {
+    if (!puedeCerrarMasivo) {
+      setConfirmandoCierre(false);
+      setMensajeError('No tienes permiso para cerrar incidentes masivos.');
+      return;
+    }
+
     try {
       setCerrando(true);
       setMensajeError('');
@@ -159,6 +175,17 @@ function DetalleMasivo() {
     }, 50);
   };
 
+  const volver = () => {
+    if (volverADiasActivos) {
+      navegar('/configuracion-avanzada', {
+        state: { vistaActiva: 'horario' },
+      });
+      return;
+    }
+
+    navegar('/masivos');
+  };
+
   if (cargando) {
     return (
       <LayoutPrincipal>
@@ -192,7 +219,7 @@ function DetalleMasivo() {
           <button
             type="button"
             className="detalle-masivo__volver"
-            onClick={() => navegar('/masivos')}
+            onClick={volver}
           >
             ←
           </button>
@@ -206,7 +233,7 @@ function DetalleMasivo() {
             </p>
           </div>
 
-          {!masivoCerrado && !confirmandoCierre && (
+          {puedeCerrarMasivo && !masivoCerrado && !confirmandoCierre && (
             <button
               type="button"
               className="detalle-masivo__boton-cerrar"
@@ -273,7 +300,7 @@ function DetalleMasivo() {
           )}
         </section>
 
-        {confirmandoCierre && !masivoCerrado && (
+        {puedeCerrarMasivo && confirmandoCierre && !masivoCerrado && (
           <section className="detalle-masivo__confirmacion-cierre">
             <div className="detalle-masivo__confirmacion-icono">!</div>
 

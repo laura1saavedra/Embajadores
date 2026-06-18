@@ -63,6 +63,8 @@ const config = {
     masivoById: (id) => `${config.API_URL}/masivos/${id}`,
     masivoCerrar: (id) => `${config.API_URL}/masivos/${id}/cerrar`,
     masivoResumen: () => `${config.API_URL}/masivos/resumen`,
+    configuracionDiasActivosMasivos: () =>
+      `${config.API_URL}/configuracion/dias-activos-masivos`,
 
     // WhatsApp grupos
     whatsapp: {

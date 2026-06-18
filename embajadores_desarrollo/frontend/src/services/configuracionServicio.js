@@ -7,6 +7,7 @@
 
 import apiClient from './api.js';
 import config from '../config/config.js';
+import { guardarDiasActivosMasivos } from './masivoServicio.js';
 
 // ── Normalizadores ─────────────────────────────────────────────
 
@@ -42,6 +43,20 @@ const normalizarRol = (rol) => ({
   idRol: rol.idrol,
   nombreRol: rol.nombre_rol,
   descripcion: rol.descripcion ?? '',
+  permisosIds: Array.isArray(rol.permisos_ids)
+    ? rol.permisos_ids.map(Number)
+    : [],
+  permisos: Array.isArray(rol.permisos)
+    ? rol.permisos.map((permiso) => ({
+        idPermiso: permiso.idpermisos,
+        nombrePermiso: permiso.nombre_permiso,
+      }))
+    : [],
+});
+
+const normalizarPermiso = (permiso) => ({
+  idPermiso: permiso.idpermisos,
+  nombrePermiso: permiso.nombre_permiso,
 });
 
 const normalizarUsuario = (usuario) => ({
@@ -64,6 +79,48 @@ const normalizarUsuario = (usuario) => ({
 // ── Servicio ───────────────────────────────────────────────────
 
 class ConfiguracionServicio {
+  async obtenerDiasActivosMasivos() {
+    const { data } = await apiClient.get(
+      config.endpoints.configuracionDiasActivosMasivos()
+    );
+
+    const diasActivos = guardarDiasActivosMasivos(data?.dias_activos);
+
+    return {
+      diasActivos,
+      fechaActualizacion: data?.fecha_actualizacion || null,
+    };
+  }
+
+  async guardarDiasActivosMasivos(diasActivos) {
+    const { data } = await apiClient.put(
+      config.endpoints.configuracionDiasActivosMasivos(),
+      {
+        dias_activos: Number(diasActivos),
+      }
+    );
+
+    const diasGuardados = guardarDiasActivosMasivos(data?.dias_activos);
+
+    return {
+      diasActivos: diasGuardados,
+      fechaActualizacion: data?.fecha_actualizacion || new Date().toISOString(),
+    };
+  }
+
+  async eliminarDiasActivosMasivos() {
+    const { data } = await apiClient.delete(
+      config.endpoints.configuracionDiasActivosMasivos()
+    );
+
+    const diasActivos = guardarDiasActivosMasivos(data?.dias_activos);
+
+    return {
+      diasActivos,
+      fechaActualizacion: data?.fecha_actualizacion || null,
+    };
+  }
+
   // ─────────────────────────────────────────────────────────────
   // Aplicaciones
   // ─────────────────────────────────────────────────────────────
@@ -255,12 +312,65 @@ class ConfiguracionServicio {
     return (data || []).map(normalizarUsuario);
   }
 
-  async listarRoles() {
+  async listarRoles({ refrescar = false } = {}) {
+    const cacheBuster = refrescar ? `?_=${Date.now()}` : '';
     const { data } = await apiClient.get(
-      `${config.endpoints.usuarios()}/roles`
+      `${config.endpoints.usuarios()}/roles${cacheBuster}`
     );
 
     return (data || []).map(normalizarRol);
+  }
+
+  async listarPermisos() {
+    const { data } = await apiClient.get(
+      `${config.endpoints.usuarios()}/permisos`
+    );
+
+    return (data || []).map(normalizarPermiso);
+  }
+
+  async crearRol({ nombreRol, descripcion = '', permisosIds = [] }) {
+    const { data } = await apiClient.post(
+      `${config.endpoints.usuarios()}/roles`,
+      {
+        nombre_rol: nombreRol,
+        descripcion,
+        permisos_ids: permisosIds.map(Number),
+      }
+    );
+
+    return normalizarRol(data);
+  }
+
+  async actualizarRol(idRol, { nombreRol, descripcion, permisosIds }) {
+    const payload = {};
+
+    if (nombreRol !== undefined) {
+      payload.nombre_rol = nombreRol;
+    }
+
+    if (descripcion !== undefined) {
+      payload.descripcion = descripcion;
+    }
+
+    if (permisosIds !== undefined) {
+      payload.permisos_ids = permisosIds.map(Number);
+    }
+
+    const { data } = await apiClient.put(
+      `${config.endpoints.usuarios()}/roles/${idRol}`,
+      payload
+    );
+
+    return normalizarRol(data);
+  }
+
+  async eliminarRol(idRol) {
+    const { data } = await apiClient.delete(
+      `${config.endpoints.usuarios()}/roles/${idRol}`
+    );
+
+    return data;
   }
 
   async obtenerUsuarioPorId(idUsuario) {

@@ -108,13 +108,9 @@ function HistorialIncidentes() {
 
   const listadoRef = useRef(null);
 
-  // ── Carga inicial ──────────────────────────────────────────────────────────
-
   useEffect(() => {
     cargarInformacionInicial();
   }, []);
-
-  // ── Cargar CAVs cuando cambia la ciudad ───────────────────────────────────
 
   useEffect(() => {
     const cargarCavs = async () => {
@@ -138,8 +134,6 @@ function HistorialIncidentes() {
     cargarCavs();
   }, [filtros.ciudadId]);
 
-  // ── Resumen ────────────────────────────────────────────────────────────────
-
   const actualizarResumen = (lista) => {
     setResumen({
       total: lista.length,
@@ -147,8 +141,6 @@ function HistorialIncidentes() {
       cerrados: lista.filter((item) => item.estado === 'cerrado').length,
     });
   };
-
-  // ── Scroll al inicio del listado ───────────────────────────────────────────
 
   const irAlInicioDelListado = () => {
     if (listadoRef.current) {
@@ -158,8 +150,6 @@ function HistorialIncidentes() {
       });
     }
   };
-
-  // ── Cargar información inicial ─────────────────────────────────────────────
 
   const cargarInformacionInicial = async () => {
     try {
@@ -197,8 +187,6 @@ function HistorialIncidentes() {
       setCargando(false);
     }
   };
-
-  // ── Handlers filtros ───────────────────────────────────────────────────────
 
   const manejarCambioFiltro = (evento) => {
     const { name, value } = evento.target;
@@ -271,8 +259,6 @@ function HistorialIncidentes() {
     setFiltrosVisibles((prev) => !prev);
   };
 
-  // ── Datos derivados ────────────────────────────────────────────────────────
-
   const cantidadFiltrosActivos = useMemo(() => {
     return Object.values(filtros).filter((valor) => valor !== '').length;
   }, [filtros]);
@@ -320,8 +306,6 @@ function HistorialIncidentes() {
     { etiqueta: 'Abiertos', valor: resumen.abiertos, clase: 'abiertos' },
     { etiqueta: 'Cerrados', valor: resumen.cerrados, clase: 'cerrados' },
   ];
-
-  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <LayoutPrincipal>

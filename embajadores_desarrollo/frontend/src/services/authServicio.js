@@ -8,6 +8,21 @@
 import apiClient from './api.js';
 import config from '../config/config.js';
 
+const normalizarPermiso = (permiso = {}) => {
+  if (typeof permiso === 'string') {
+    return {
+      idPermiso: null,
+      nombrePermiso: permiso,
+    };
+  }
+
+  return {
+    idPermiso: Number(permiso.id ?? permiso.idpermisos ?? permiso.idPermiso ?? 0),
+    nombrePermiso:
+      permiso.nombre_permiso ?? permiso.nombrePermiso ?? permiso.name ?? '',
+  };
+};
+
 const normalizarUsuario = (usuario = {}) => ({
   idUsuario: Number(usuario.id_usuario ?? usuario.idUsuario ?? usuario.user_id ?? 0),
   nombre: usuario.nombre ?? usuario.first_name ?? '',
@@ -16,6 +31,14 @@ const normalizarUsuario = (usuario = {}) => ({
   rolId: Number(usuario.rol_id ?? usuario.rolId ?? 0),
   rolNombre: usuario.rol_nombre ?? usuario.rolNombre ?? '',
   roles: Array.isArray(usuario.roles) ? usuario.roles : [],
+  permisos: Array.isArray(usuario.permisos)
+    ? usuario.permisos.map(normalizarPermiso)
+    : Array.isArray(usuario.roles?.[0]?.permissions)
+      ? usuario.roles[0].permissions.map(normalizarPermiso)
+      : [],
+  permisosIds: Array.isArray(usuario.permisos_ids)
+    ? usuario.permisos_ids.map(Number)
+    : [],
   activo: Boolean(usuario.activo ?? usuario.is_active ?? true),
   verificado: Boolean(usuario.is_verified ?? !usuario.debe_cambiar_contrasena),
   debeCambiarContrasena: Boolean(

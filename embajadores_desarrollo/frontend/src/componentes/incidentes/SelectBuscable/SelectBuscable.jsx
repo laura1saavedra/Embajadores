@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './SelectBuscable.css';
 
+const ALTO_OPCION = 38;
+const ESPACIO_VERTICAL_LISTA = 12;
+const ALTURA_BUSQUEDA = 59;
+const OPCIONES_VISIBLES_DEFECTO = 6;
+
 function SelectBuscable({
   id,
   label,
@@ -12,6 +17,7 @@ function SelectBuscable({
   disabled = false,
   required = false,
   sinResultadosTexto = 'No se encontraron resultados',
+  opcionesVisibles = OPCIONES_VISIBLES_DEFECTO,
 }) {
   const contenedorRef = useRef(null);
   const controlRef = useRef(null);
@@ -38,8 +44,13 @@ function SelectBuscable({
     if (!controlRef.current) return;
     const rect = controlRef.current.getBoundingClientRect();
     const espacioDebajo = window.innerHeight - rect.bottom - 6;
-    const alturaBusqueda = 58;
-    const maxListaHeight = Math.max(80, espacioDebajo - alturaBusqueda - 8);
+    const maxListaPorOpciones =
+      ALTO_OPCION * opcionesVisibles + ESPACIO_VERTICAL_LISTA;
+    const maxListaDisponible = espacioDebajo - ALTURA_BUSQUEDA - 8;
+    const maxListaHeight = Math.max(
+      ALTO_OPCION * 2,
+      Math.min(maxListaPorOpciones, maxListaDisponible)
+    );
 
     setPosicionPanel({
       top: rect.bottom + 6,

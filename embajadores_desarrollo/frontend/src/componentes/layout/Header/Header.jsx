@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../../context/AuthContext';
+import { PERMISOS, usuarioTienePermiso } from '../../../utils/permisos';
 import './Header.css';
 
 function Header() {
@@ -17,7 +18,27 @@ function Header() {
     .slice(0, 2)
     .map((parte) => parte.charAt(0).toUpperCase())
     .join('') || 'US';
-  const esAdministrador = rolNombre.toLowerCase().includes('admin');
+
+  const puedeRegistrarIncidente = usuarioTienePermiso(
+    usuario,
+    PERMISOS.REGISTRAR_INCIDENTE
+  );
+  const puedeVerMasivos = usuarioTienePermiso(
+    usuario,
+    PERMISOS.VER_INCIDENTES_MASIVOS
+  );
+  const puedeVerHistorial = usuarioTienePermiso(
+    usuario,
+    PERMISOS.VER_HISTORIAL_INCIDENTES
+  );
+  const puedeGestionarContactos = usuarioTienePermiso(
+    usuario,
+    PERMISOS.GESTIONAR_CONTACTOS_WA
+  );
+  const puedeGestionarConfiguracion = usuarioTienePermiso(
+    usuario,
+    PERMISOS.GESTIONAR_CONFIGURACION_AVANZADA
+  );
 
   const cerrarSesion = async () => {
     await logout();
@@ -38,43 +59,51 @@ function Header() {
 
         <div className="header__acciones">
           <nav className="header__navegacion" aria-label="Navegacion principal">
-            <NavLink
-              to="/registrar-incidente"
-              className={({ isActive }) =>
-                `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
-              }
-            >
-              Registrar incidente
-            </NavLink>
+            {puedeRegistrarIncidente && (
+              <NavLink
+                to="/registrar-incidente"
+                className={({ isActive }) =>
+                  `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
+                }
+              >
+                Registrar incidente
+              </NavLink>
+            )}
 
-            <NavLink
-              to="/masivos"
-              className={({ isActive }) =>
-                `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
-              }
-            >
-              Resumen
-            </NavLink>
+            {puedeVerMasivos && (
+              <NavLink
+                to="/masivos"
+                className={({ isActive }) =>
+                  `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
+                }
+              >
+                Resumen
+              </NavLink>
+            )}
 
-            <NavLink
-              to="/historial-incidentes"
-              className={({ isActive }) =>
-                `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
-              }
-            >
-              Historial
-            </NavLink>
+            {puedeVerHistorial && (
+              <NavLink
+                to="/historial-incidentes"
+                className={({ isActive }) =>
+                  `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
+                }
+              >
+                Historial
+              </NavLink>
+            )}
 
-            <NavLink
-              to="/contactos"
-              className={({ isActive }) =>
-                `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
-              }
-            >
-              Contactos WA
-            </NavLink>
+            {puedeGestionarContactos && (
+              <NavLink
+                to="/contactos"
+                className={({ isActive }) =>
+                  `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
+                }
+              >
+                Contactos WA
+              </NavLink>
+            )}
 
-            {esAdministrador && (
+            {puedeGestionarConfiguracion && (
               <NavLink
                 to="/configuracion-avanzada"
                 className={({ isActive }) =>

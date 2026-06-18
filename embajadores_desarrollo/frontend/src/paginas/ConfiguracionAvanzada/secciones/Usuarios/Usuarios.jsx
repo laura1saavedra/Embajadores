@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import SelectBuscable from '../../../../componentes/incidentes/SelectBuscable/SelectBuscable';
+import { useAuth } from '../../../../context/AuthContext';
 import configuracionServicio from '../../../../services/configuracionServicio';
 
 import './Usuarios.css';
@@ -12,17 +13,50 @@ const FORM_INICIAL = {
   rolId: '',
 };
 
-const ELEMENTOS_POR_PAGINA = 6;
+const ROL_FORM_INICIAL = {
+  nombreRol: '',
+  descripcion: '',
+  permisosIds: [],
+};
+
+const ELEMENTOS_POR_PAGINA = 4;
+const ROLES_POR_PAGINA = 3;
+
+const obtenerClaseBadgeRol = (nombreRol = '') => {
+  const rolNormalizado = nombreRol.toLowerCase();
+
+  if (rolNormalizado.includes('administrador')) {
+    return 'usuarios__badge--administrador';
+  }
+
+  if (rolNormalizado.includes('embajador')) {
+    return 'usuarios__badge--embajador';
+  }
+
+  if (rolNormalizado.includes('lider')) {
+    return 'usuarios__badge--liderazgo';
+  }
+
+  return 'usuarios__badge--general';
+};
 
 function Usuarios({ onVolver }) {
+  const { cargarUsuarioActual } = useAuth();
   const [vista, setVista] = useState('listado');
   const [usuarios, setUsuarios] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [permisos, setPermisos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
+  const [busquedaRol, setBusquedaRol] = useState('');
   const [pagina, setPagina] = useState(1);
+  const [paginaRoles, setPaginaRoles] = useState(1);
   const [form, setForm] = useState(FORM_INICIAL);
+  const [rolForm, setRolForm] = useState(ROL_FORM_INICIAL);
   const [usuarioEditando, setUsuarioEditando] = useState(null);
   const [usuarioEliminando, setUsuarioEliminando] = useState(null);
+  const [rolEditando, setRolEditando] = useState(null);
+  const [rolEliminando, setRolEliminando] = useState(null);
+  const [rolesPermisosExpandidos, setRolesPermisosExpandidos] = useState({});
   const [usuarioContrasena, setUsuarioContrasena] = useState(null);
   const [mensajeContrasena, setMensajeContrasena] = useState('');
   const [cargando, setCargando] = useState(true);
@@ -50,13 +84,15 @@ function Usuarios({ onVolver }) {
       setCargando(true);
       setMensajeError('');
 
-      const [usuariosRespuesta, rolesRespuesta] = await Promise.all([
+      const [usuariosRespuesta, rolesRespuesta, permisosRespuesta] = await Promise.all([
         configuracionServicio.listarUsuarios(),
-        configuracionServicio.listarRoles(),
+        configuracionServicio.listarRoles({ refrescar: true }),
+        configuracionServicio.listarPermisos(),
       ]);
 
       setUsuarios(usuariosRespuesta);
       setRoles(rolesRespuesta);
+      setPermisos(permisosRespuesta);
     } catch (error) {
       setMensajeError(error.message || 'No fue posible cargar usuarios.');
       subirAlInicio();
@@ -82,8 +118,17 @@ function Usuarios({ onVolver }) {
     setVista('crear');
   };
 
+  const abrirCrearRol = () => {
+    limpiarFormularioRol();
+    limpiarMensajes();
+    setUsuarioEliminando(null);
+    setRolEliminando(null);
+    setVista('rol');
+  };
+
   const abrirListado = () => {
     limpiarFormulario();
+    limpiarFormularioRol();
     setUsuarioEliminando(null);
     setVista('listado');
     cargarDatos();
@@ -124,6 +169,49 @@ function Usuarios({ onVolver }) {
     }));
   }, [roles]);
 
+  const rolesFiltrados = useMemo(() => {
+    const texto = busquedaRol.trim().toLowerCase();
+
+    if (!texto) return roles;
+
+    return roles.filter((rol) => {
+      const permisosTexto = (rol.permisos || [])
+        .map((permiso) => permiso.nombrePermiso)
+        .join(' ')
+        .toLowerCase();
+
+      return (
+        rol.nombreRol.toLowerCase().includes(texto) ||
+        (rol.descripcion || '').toLowerCase().includes(texto) ||
+        permisosTexto.includes(texto)
+      );
+    });
+  }, [roles, busquedaRol]);
+
+  const totalPaginasRoles = Math.max(
+    1,
+    Math.ceil(rolesFiltrados.length / ROLES_POR_PAGINA)
+  );
+
+  const rolesVisibles = useMemo(() => {
+    const inicio = (paginaRoles - 1) * ROLES_POR_PAGINA;
+    const fin = inicio + ROLES_POR_PAGINA;
+
+    return rolesFiltrados.slice(inicio, fin);
+  }, [rolesFiltrados, paginaRoles]);
+
+  useEffect(() => {
+    setPaginaRoles((prev) => Math.min(prev, totalPaginasRoles));
+  }, [totalPaginasRoles]);
+
+  const conteoUsuariosPorRol = useMemo(() => {
+    return usuarios.reduce((acumulado, usuario) => {
+      const rolId = Number(usuario.rolId);
+      acumulado[rolId] = (acumulado[rolId] || 0) + 1;
+      return acumulado;
+    }, {});
+  }, [usuarios]);
+
   const formSinCambios =
     usuarioEditando &&
     form.nombre.trim() === usuarioEditando.nombre &&
@@ -131,10 +219,79 @@ function Usuarios({ onVolver }) {
     form.correo.trim().toLowerCase() === usuarioEditando.correo &&
     Number(form.rolId) === Number(usuarioEditando.rolId);
 
+  const rolFormSinCambios =
+    rolEditando &&
+    rolForm.nombreRol.trim() === rolEditando.nombreRol &&
+    rolForm.descripcion.trim() === (rolEditando.descripcion || '') &&
+    [...rolForm.permisosIds].sort((a, b) => a - b).join(',') ===
+      [...(rolEditando.permisosIds || [])].sort((a, b) => a - b).join(',');
+
   const actualizarCampo = (campo, valor) => {
     setForm((prev) => ({
       ...prev,
       [campo]: valor,
+    }));
+  };
+
+  const actualizarCampoRol = (campo, valor) => {
+    setRolForm((prev) => ({
+      ...prev,
+      [campo]: valor,
+    }));
+  };
+
+  const alternarPermisoRol = (permisoId) => {
+    setRolForm((prev) => {
+      const permisoIdNumero = Number(permisoId);
+      const permisosIds = prev.permisosIds.includes(permisoIdNumero)
+        ? prev.permisosIds.filter((id) => id !== permisoIdNumero)
+        : [...prev.permisosIds, permisoIdNumero];
+
+      return {
+        ...prev,
+        permisosIds,
+      };
+    });
+  };
+
+  const limpiarFormularioRol = () => {
+    setRolForm(ROL_FORM_INICIAL);
+    setRolEditando(null);
+    setRolEliminando(null);
+  };
+
+  const prepararEditarRol = (rol) => {
+    limpiarMensajes();
+    setRolEliminando(null);
+    setRolEditando(rol);
+    setRolForm({
+      nombreRol: rol.nombreRol,
+      descripcion: rol.descripcion || '',
+      permisosIds: rol.permisosIds || [],
+    });
+    setVista('rol');
+  };
+
+  const prepararEliminarRol = (rol) => {
+    limpiarMensajes();
+
+    const totalUsuariosRol = conteoUsuariosPorRol[Number(rol.idRol)] || 0;
+    if (totalUsuariosRol > 0) {
+      setMensajeError(
+        `No se puede eliminar el rol "${rol.nombreRol}" porque tiene ${totalUsuariosRol} usuario${totalUsuariosRol === 1 ? '' : 's'} asociado${totalUsuariosRol === 1 ? '' : 's'}. Cambia el rol de esos usuarios antes de eliminarlo.`
+      );
+      subirAlInicio();
+      return;
+    }
+
+    setRolEliminando(rol);
+    setRolEditando(null);
+  };
+
+  const alternarPermisosRolExpandido = (rolId) => {
+    setRolesPermisosExpandidos((prev) => ({
+      ...prev,
+      [rolId]: !prev[rolId],
     }));
   };
 
@@ -162,6 +319,21 @@ function Usuarios({ onVolver }) {
     if (!form.apellido.trim()) return 'El apellido es obligatorio.';
     if (!form.correo.trim()) return 'El correo corporativo es obligatorio.';
     if (!form.rolId) return 'Selecciona un rol.';
+
+    return '';
+  };
+
+  const validarFormularioRol = () => {
+    if (!rolForm.nombreRol.trim()) return 'El nombre del rol es obligatorio.';
+    if (rolForm.nombreRol.trim().length > 100) {
+      return 'El nombre del rol no puede superar 100 caracteres.';
+    }
+    if (rolForm.descripcion.trim().length > 255) {
+      return 'La descripcion del rol no puede superar 255 caracteres.';
+    }
+    if (rolForm.permisosIds.length === 0) {
+      return 'Selecciona al menos un permiso para el rol.';
+    }
 
     return '';
   };
@@ -213,6 +385,79 @@ function Usuarios({ onVolver }) {
       }
     } catch (error) {
       setMensajeError(error.message || 'No fue posible guardar el usuario.');
+      subirAlInicio();
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const guardarRol = async (evento) => {
+    evento.preventDefault();
+
+    const errorFormulario = validarFormularioRol();
+    if (errorFormulario) {
+      setMensajeError(errorFormulario);
+      subirAlInicio();
+      return;
+    }
+
+    if (rolFormSinCambios) {
+      limpiarFormularioRol();
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      limpiarMensajes();
+
+      const payload = {
+        nombreRol: rolForm.nombreRol.trim(),
+        descripcion: rolForm.descripcion.trim(),
+        permisosIds: rolForm.permisosIds,
+      };
+
+      const permisosSeleccionados = permisos.filter((permiso) =>
+        payload.permisosIds.includes(Number(permiso.idPermiso))
+      );
+
+      if (rolEditando) {
+        const rolActualizado = await configuracionServicio.actualizarRol(
+          rolEditando.idRol,
+          payload
+        );
+        const rolParaMostrar = {
+          ...rolActualizado,
+          permisosIds: payload.permisosIds,
+          permisos: permisosSeleccionados,
+        };
+
+        setRoles((prev) =>
+          prev.map((rol) =>
+            Number(rol.idRol) === Number(rolEditando.idRol)
+              ? rolParaMostrar
+              : rol
+          )
+        );
+        setMensajeExito('Rol actualizado correctamente.');
+      } else {
+        const rolCreado = await configuracionServicio.crearRol(payload);
+        const rolParaMostrar = {
+          ...rolCreado,
+          permisosIds: payload.permisosIds,
+          permisos: permisosSeleccionados,
+        };
+
+        setRoles((prev) => [...prev, rolParaMostrar]);
+        setMensajeExito('Rol creado correctamente.');
+      }
+
+      limpiarFormularioRol();
+      await cargarDatos();
+      await cargarUsuarioActual();
+      setVista('listado');
+      subirAlInicio();
+    } catch (error) {
+      setMensajeError(error.message || 'No fue posible guardar el rol.');
       subirAlInicio();
     } finally {
       setGuardando(false);
@@ -279,6 +524,28 @@ function Usuarios({ onVolver }) {
       subirAlInicio();
     } catch (error) {
       setMensajeError(error.message || 'No fue posible eliminar el usuario.');
+      subirAlInicio();
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const confirmarEliminarRol = async () => {
+    if (!rolEliminando) return;
+
+    try {
+      setGuardando(true);
+      limpiarMensajes();
+
+      await configuracionServicio.eliminarRol(rolEliminando.idRol);
+
+      setRolEliminando(null);
+      setMensajeExito('Rol eliminado correctamente.');
+      await cargarDatos();
+      await cargarUsuarioActual();
+      subirAlInicio();
+    } catch (error) {
+      setMensajeError(error.message || 'No fue posible eliminar el rol.');
       subirAlInicio();
     } finally {
       setGuardando(false);
@@ -422,14 +689,22 @@ function Usuarios({ onVolver }) {
                   )}
                 </div>
 
+                <button
+                  type="button"
+                  className="usuarios__boton-crear"
+                  onClick={abrirCrear}
+                >
+                  Crear usuario
+                </button>
+
                 {totalPaginas > 1 && (
-                  <div className="usuarios__paginacion-mini">
+                  <div className="usuarios__paginacion-mini usuarios__paginacion-mini--tabla">
                     <button
                       type="button"
                       onClick={() => setPagina((prev) => Math.max(prev - 1, 1))}
                       disabled={pagina === 1}
                     >
-                      {'<-'}
+                      ←
                     </button>
 
                     <span>{pagina}/{totalPaginas}</span>
@@ -441,18 +716,10 @@ function Usuarios({ onVolver }) {
                       }
                       disabled={pagina === totalPaginas}
                     >
-                      {'->'}
+                      →
                     </button>
                   </div>
                 )}
-
-                <button
-                  type="button"
-                  className="usuarios__boton-crear"
-                  onClick={abrirCrear}
-                >
-                  Crear usuario
-                </button>
               </div>
             </div>
 
@@ -482,13 +749,9 @@ function Usuarios({ onVolver }) {
                       <td>{usuario.correo}</td>
                       <td>
                         <span
-                          className={`usuarios__badge ${
-                            usuario.rolNombre.toLowerCase().includes('administrador')
-                              ? 'usuarios__badge--administrador'
-                              : usuario.rolNombre.toLowerCase().includes('embajador')
-                                ? 'usuarios__badge--embajador'
-                                : ''
-                          }`}
+                          className={`usuarios__badge ${obtenerClaseBadgeRol(
+                            usuario.rolNombre
+                          )}`}
                         >
                           {usuario.rolNombre || 'Sin rol'}
                         </span>
@@ -558,6 +821,316 @@ function Usuarios({ onVolver }) {
               </table>
             </div>
           </div>
+
+          <div className="usuarios__roles-panel">
+            <div className="usuarios__roles-header">
+              <div>
+                <h2>Roles de acceso</h2>
+                <p>{rolesFiltrados.length} resultados</p>
+              </div>
+
+              <div className="usuarios__header-derecha">
+                <div className="usuarios__buscador">
+                  <input
+                    type="text"
+                    placeholder="Buscar rol..."
+                    value={busquedaRol}
+                    onChange={(evento) => {
+                      setBusquedaRol(evento.target.value);
+                      setPaginaRoles(1);
+                    }}
+                  />
+
+                  {busquedaRol.trim().length > 0 && (
+                    <button
+                      type="button"
+                      className="usuarios__limpiar-busqueda"
+                      onClick={() => {
+                        setBusquedaRol('');
+                        setPaginaRoles(1);
+                      }}
+                      aria-label="Limpiar busqueda de roles"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className="usuarios__boton-crear"
+                  onClick={abrirCrearRol}
+                  disabled={guardando}
+                >
+                  Crear rol
+                </button>
+
+                {totalPaginasRoles > 1 && (
+                  <div className="usuarios__paginacion-mini usuarios__paginacion-mini--roles">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPaginaRoles((prev) => Math.max(prev - 1, 1))
+                      }
+                      disabled={paginaRoles === 1}
+                    >
+                      ←
+                    </button>
+
+                    <span>{paginaRoles}/{totalPaginasRoles}</span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPaginaRoles((prev) =>
+                          Math.min(prev + 1, totalPaginasRoles)
+                        )
+                      }
+                      disabled={paginaRoles === totalPaginasRoles}
+                    >
+                      →
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="usuarios__tabla-contenedor">
+              <table className="usuarios__tabla usuarios__tabla--roles">
+                <thead>
+                  <tr>
+                    <th>Rol</th>
+                    <th>Descripcion</th>
+                    <th>Permisos</th>
+                    <th>Usuarios</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {rolesVisibles.map((rol) => {
+                    const totalUsuariosRol =
+                      conteoUsuariosPorRol[Number(rol.idRol)] || 0;
+                    const permisosRol = rol.permisos || [];
+                    const permisosExpandidos =
+                      Boolean(rolesPermisosExpandidos[rol.idRol]);
+                    const permisosVisibles = permisosExpandidos
+                      ? permisosRol
+                      : permisosRol.slice(0, 3);
+                    const permisosOcultos = Math.max(
+                      permisosRol.length - permisosVisibles.length,
+                      0
+                    );
+
+                    return (
+                      <tr key={rol.idRol}>
+                        <td>
+                          <span
+                            className={`usuarios__badge ${obtenerClaseBadgeRol(
+                              rol.nombreRol
+                            )}`}
+                          >
+                            {rol.nombreRol}
+                          </span>
+                        </td>
+                        <td>{rol.descripcion || 'Sin descripcion'}</td>
+                        <td>
+                          <div className="usuarios__permisos-lista">
+                            {permisosVisibles.map((permiso) => (
+                              <span key={permiso.idPermiso}>
+                                {permiso.nombrePermiso}
+                              </span>
+                            ))}
+
+                            {permisosRol.length === 0 && (
+                              <span>Sin permisos</span>
+                            )}
+
+                            {permisosRol.length > 3 && (
+                              <button
+                                type="button"
+                                className="usuarios__permisos-toggle"
+                                onClick={() =>
+                                  alternarPermisosRolExpandido(rol.idRol)
+                                }
+                              >
+                                {permisosExpandidos
+                                  ? 'Ver menos'
+                                  : `Ver ${permisosOcultos} mas`}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td>{totalUsuariosRol}</td>
+                        <td>
+                          <div className="usuarios__acciones">
+                            <button
+                              type="button"
+                              onClick={() => prepararEditarRol(rol)}
+                              disabled={guardando}
+                            >
+                              Editar
+                            </button>
+
+                            <button
+                              type="button"
+                              className="usuarios__accion-eliminar"
+                              onClick={() => prepararEliminarRol(rol)}
+                              disabled={guardando}
+                              title={
+                                totalUsuariosRol > 0
+                                  ? 'No se puede eliminar porque tiene usuarios asociados.'
+                                  : 'Eliminar rol'
+                              }
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {rolesFiltrados.length === 0 && (
+                    <tr>
+                      <td colSpan="5">
+                        <p className="usuarios__sin-datos">
+                          No se encontraron roles.
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {vista === 'rol' && (
+        <>
+          <button
+            type="button"
+            className="usuarios__volver usuarios__volver--form"
+            onClick={abrirListado}
+            aria-label="Volver a roles"
+          >
+            ←
+          </button>
+
+          <div className="usuarios__form-titulo">
+            {rolEditando ? (
+              <h1>
+                Editar <span>rol</span>
+              </h1>
+            ) : (
+              <h1>
+                Crear <span>rol</span>
+              </h1>
+            )}
+            <p>
+              {rolEditando
+                ? 'Actualiza el nombre, la descripcion y los permisos del rol seleccionado.'
+                : 'Define un nuevo rol y selecciona los permisos que tendra en la plataforma.'}
+            </p>
+          </div>
+
+          {mensajeError && (
+            <div className="configuracion__alerta configuracion__alerta--error">
+              {mensajeError}
+            </div>
+          )}
+
+          {mensajeExito && (
+            <div className="configuracion__alerta configuracion__alerta--exito">
+              {mensajeExito}
+            </div>
+          )}
+
+          <form
+            className="usuarios__form-card usuarios__form-card--rol"
+            onSubmit={guardarRol}
+          >
+            <div className="usuarios__rol-form">
+              <div className="usuarios__campo">
+                <label htmlFor="nombreRol">
+                  {rolEditando ? 'Nombre del rol' : 'Nuevo rol'}
+                </label>
+                <input
+                  id="nombreRol"
+                  type="text"
+                  placeholder="Nombre del rol"
+                  value={rolForm.nombreRol}
+                  onChange={(evento) =>
+                    actualizarCampoRol('nombreRol', evento.target.value)
+                  }
+                  disabled={guardando}
+                />
+              </div>
+
+              <div className="usuarios__campo">
+                <label htmlFor="descripcionRol">Descripcion</label>
+                <input
+                  id="descripcionRol"
+                  type="text"
+                  placeholder="Descripcion breve"
+                  value={rolForm.descripcion}
+                  onChange={(evento) =>
+                    actualizarCampoRol('descripcion', evento.target.value)
+                  }
+                  disabled={guardando}
+                />
+              </div>
+
+              <fieldset className="usuarios__permisos">
+                <legend>Permisos</legend>
+
+                <div className="usuarios__permisos-grid">
+                  {permisos.map((permiso) => (
+                    <label
+                      key={permiso.idPermiso}
+                      className="usuarios__permiso-opcion"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={rolForm.permisosIds.includes(
+                          Number(permiso.idPermiso)
+                        )}
+                        onChange={() => alternarPermisoRol(permiso.idPermiso)}
+                        disabled={guardando}
+                      />
+                      <span>{permiso.nombrePermiso}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+
+            <div className="usuarios__form-acciones">
+              <button
+                type="button"
+                className="usuarios__boton-secundario"
+                onClick={abrirListado}
+                disabled={guardando}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="submit"
+                className="usuarios__boton-principal"
+                disabled={guardando}
+              >
+                {guardando
+                  ? 'Guardando...'
+                  : rolEditando
+                    ? rolFormSinCambios
+                      ? 'Guardar sin cambios'
+                      : 'Guardar rol'
+                    : 'Crear rol'}
+              </button>
+            </div>
+          </form>
         </>
       )}
 
@@ -733,6 +1306,47 @@ function Usuarios({ onVolver }) {
                 type="button"
                 className="usuarios__boton-eliminar"
                 onClick={confirmarEliminar}
+                disabled={guardando}
+              >
+                {guardando ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rolEliminando && (
+        <div className="usuarios__modal-fondo">
+          <div className="usuarios__modal usuarios__modal--confirmacion usuarios__modal--eliminar">
+            <button
+              type="button"
+              className="usuarios__modal-cerrar"
+              onClick={() => setRolEliminando(null)}
+              aria-label="Cerrar"
+            >
+              x
+            </button>
+
+            <h2>Eliminar rol</h2>
+            <p>
+              Estas seguro de eliminar el rol{' '}
+              <strong>{rolEliminando.nombreRol}</strong>?
+            </p>
+
+            <div className="usuarios__modal-acciones">
+              <button
+                type="button"
+                className="usuarios__boton-secundario"
+                onClick={() => setRolEliminando(null)}
+                disabled={guardando}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                className="usuarios__boton-eliminar"
+                onClick={confirmarEliminarRol}
                 disabled={guardando}
               >
                 {guardando ? 'Eliminando...' : 'Eliminar'}

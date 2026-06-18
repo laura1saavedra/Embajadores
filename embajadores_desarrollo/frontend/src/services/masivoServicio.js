@@ -9,6 +9,9 @@
 import apiClient from './api';
 import config from '../config/config';
 
+export const DIAS_ACTIVOS_MASIVOS_KEY = 'embajadores.diasActivosMasivosCerrados';
+export const DIAS_ACTIVOS_MASIVOS_DEFAULT = 30;
+
 // ── Normalizadores ──────────────────────────────────────────────────────────
 
 const normalizarIncidenteDeCav = (i) => ({
@@ -65,6 +68,79 @@ const normalizarMasivo = (m) => ({
   diasActivos: m.dias_activos ?? null,
 });
 
+export const obtenerDiasActivosMasivos = () => {
+  if (typeof window === 'undefined') {
+    return DIAS_ACTIVOS_MASIVOS_DEFAULT;
+  }
+
+  const valorGuardado = Number(
+    window.localStorage.getItem(DIAS_ACTIVOS_MASIVOS_KEY)
+  );
+
+  if (!Number.isFinite(valorGuardado) || valorGuardado < 1) {
+    return DIAS_ACTIVOS_MASIVOS_DEFAULT;
+  }
+
+  return valorGuardado;
+};
+
+export const guardarDiasActivosMasivos = (dias) => {
+  const diasNormalizados = Math.min(
+    365,
+    Math.max(1, Number(dias) || DIAS_ACTIVOS_MASIVOS_DEFAULT)
+  );
+
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(
+      DIAS_ACTIVOS_MASIVOS_KEY,
+      String(diasNormalizados)
+    );
+  }
+
+  return diasNormalizados;
+};
+
+export const obtenerDiasActivosMasivosRemoto = async () => {
+  try {
+    const { data } = await apiClient.get(
+      config.endpoints.configuracionDiasActivosMasivos()
+    );
+
+    const diasActivos = Number(data?.dias_activos);
+    const diasNormalizados =
+      Number.isFinite(diasActivos) && diasActivos >= 1
+        ? diasActivos
+        : DIAS_ACTIVOS_MASIVOS_DEFAULT;
+
+    guardarDiasActivosMasivos(diasNormalizados);
+
+    return diasNormalizados;
+  } catch (error) {
+    return obtenerDiasActivosMasivos();
+  }
+};
+
+const masivoCerradoEstaActivo = (masivo, diasActivos) => {
+  if (masivo.estado !== 'cerrado') {
+    return true;
+  }
+
+  if (!masivo.fechaHoraCierre) {
+    return true;
+  }
+
+  const fechaCierre = new Date(masivo.fechaHoraCierre);
+
+  if (Number.isNaN(fechaCierre.getTime())) {
+    return true;
+  }
+
+  const fechaLimite = new Date();
+  fechaLimite.setDate(fechaLimite.getDate() - diasActivos);
+
+  return fechaCierre >= fechaLimite;
+};
+
 const normalizarDetalleMasivo = (m) => ({
   ...normalizarMasivo(m),
 
@@ -76,8 +152,9 @@ const normalizarDetalleMasivo = (m) => ({
 // ── Servicio ────────────────────────────────────────────────────────────────
 
 class MasivoServicio {
-  async listarMasivos(filtros = {}) {
+  async listarMasivos(filtros = {}, opciones = {}) {
     const params = new URLSearchParams();
+    const { incluirCerrados = false } = opciones;
 
     if (filtros.aplicacionId) {
       params.append('aplicacion_id', filtros.aplicacionId);
@@ -90,16 +167,31 @@ class MasivoServicio {
     const query = params.toString() ? `?${params.toString()}` : '';
 
     const { data } = await apiClient.get(config.endpoints.masivos(query));
+    const diasActivos = await obtenerDiasActivosMasivosRemoto();
 
-    return (data || []).map(normalizarMasivo);
+    return (data || [])
+      .map(normalizarMasivo)
+      .filter((masivo) => {
+        if (masivo.estado !== 'cerrado') {
+          return true;
+        }
+
+        return incluirCerrados && masivoCerradoEstaActivo(masivo, diasActivos);
+      });
   }
 
   async obtenerResumen() {
     const { data } = await apiClient.get(config.endpoints.masivoResumen());
 
-    return data || {
+    const resumen = data || {
       total: 0,
       abiertos: 0,
+      cerrados: 0,
+    };
+
+    return {
+      ...resumen,
+      total: resumen.abiertos ?? 0,
       cerrados: 0,
     };
   }

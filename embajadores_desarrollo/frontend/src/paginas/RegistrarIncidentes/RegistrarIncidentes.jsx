@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import LayoutPrincipal from '../../componentes/layout/LayoutPrincipal/LayoutPrincipal';
@@ -26,6 +26,7 @@ const crearFila = () => ({
 // ── Componente ────────────────────────────────────────────────────────────────
 
 function RegistrarIncidente() {
+  const avisoRef = useRef(null);
   const [formulario, setFormulario] = useState(ESTADO_INICIAL);
 
   const [ciudades, setCiudades] = useState([]);
@@ -38,6 +39,7 @@ function RegistrarIncidente() {
 
   const [mensajeExito, setMensajeExito] = useState('');
   const [mensajeError, setMensajeError] = useState('');
+  const [versionAviso, setVersionAviso] = useState(0);
 
   const [idRegistrado, setIdRegistrado] = useState(null);
   const [tipoRegistro, setTipoRegistro] = useState('');
@@ -45,6 +47,17 @@ function RegistrarIncidente() {
   const [filasAplicaciones, setFilasAplicaciones] = useState([
     crearFila(),
   ]);
+
+  useEffect(() => {
+    if (!versionAviso || (!mensajeExito && !mensajeError)) return;
+
+    requestAnimationFrame(() => {
+      avisoRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+  }, [versionAviso, mensajeExito, mensajeError]);
 
   // ── Carga inicial ──────────────────────────────────────────────────────────
 
@@ -131,6 +144,18 @@ function RegistrarIncidente() {
     );
   };
 
+  const mostrarErrorSubmit = (mensaje) => {
+    setMensajeExito('');
+    setMensajeError(mensaje);
+    setVersionAviso((prev) => prev + 1);
+  };
+
+  const mostrarExitoSubmit = (mensaje) => {
+    setMensajeError('');
+    setMensajeExito(mensaje);
+    setVersionAviso((prev) => prev + 1);
+  };
+
   // ── Limpiar ────────────────────────────────────────────────────────────────
 
   const manejarLimpiar = () => {
@@ -153,7 +178,7 @@ function RegistrarIncidente() {
       !formulario.cavId ||
       formulario.usuariosAfectados === ''
     ) {
-      setMensajeError('Completa todos los campos obligatorios (*).');
+      mostrarErrorSubmit('Completa todos los campos obligatorios (*).');
       return;
     }
 
@@ -167,7 +192,7 @@ function RegistrarIncidente() {
       const clave = `${fila.aplicacionId}-${fila.tipoFallaId}`;
 
       if (combinaciones.has(clave)) {
-        setMensajeError(
+        mostrarErrorSubmit(
           'No se puede registrar la misma combinación de aplicación y tipo de falla más de una vez.'
         );
         return;
@@ -177,7 +202,7 @@ function RegistrarIncidente() {
     }
 
     if (filasValidas.length === 0) {
-      setMensajeError(
+      mostrarErrorSubmit(
         'Selecciona al menos una aplicación y un tipo de falla.'
       );
       return;
@@ -191,7 +216,7 @@ function RegistrarIncidente() {
         : null;
 
     if (usuariosAfectados < 0) {
-      setMensajeError(
+      mostrarErrorSubmit(
         'Los usuarios afectados no pueden ser negativos.'
       );
       return;
@@ -201,7 +226,7 @@ function RegistrarIncidente() {
       usuariosTotalidad !== null &&
       usuariosAfectados > usuariosTotalidad
     ) {
-      setMensajeError(
+      mostrarErrorSubmit(
         'Los usuarios afectados no pueden ser mayores que los usuarios totales.'
       );
       return;
@@ -222,9 +247,9 @@ function RegistrarIncidente() {
 
       setIdRegistrado(creado.idIncidente);
       setTipoRegistro(creado.tipoRegistro);
-      setMensajeExito(creado.mensaje);
+      mostrarExitoSubmit(creado.mensaje);
     } catch (err) {
-      setMensajeError(
+      mostrarErrorSubmit(
         err.message || 'No fue posible registrar el incidente.'
       );
     } finally {
@@ -276,7 +301,7 @@ function RegistrarIncidente() {
         </section>
 
         {mensajeExito && (
-          <div className="ri__alerta ri__alerta--exito">
+          <div ref={avisoRef} className="ri__alerta ri__alerta--exito">
             {mensajeExito}
 
             <div className="ri__enlaces-exito">
@@ -299,7 +324,7 @@ function RegistrarIncidente() {
         )}
 
         {mensajeError && (
-          <div className="ri__alerta ri__alerta--error">
+          <div ref={avisoRef} className="ri__alerta ri__alerta--error">
             {mensajeError}
           </div>
         )}

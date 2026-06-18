@@ -394,6 +394,7 @@
   .historial-incidentes__paginacion-superior {
     width: 100%;
   }
+
 }
 
 @media (max-width: 520px) {
@@ -418,4 +419,5 @@
   .historial-incidentes__boton-ver-mas {
     width: 100%;
   }
+
 }

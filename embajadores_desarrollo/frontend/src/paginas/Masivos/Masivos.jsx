@@ -336,7 +336,6 @@ function Masivos() {
                     <th>ID</th>
                     <th>Aplicación</th>
                     <th>Tipo de falla</th>
-                    <th>Incidentes</th>
                     <th>CAVs</th>
                     <th>Usuarios afectados</th>
                     <th>Estado</th>
@@ -351,7 +350,6 @@ function Masivos() {
                       <td>#{masivo.idMasivo}</td>
                       <td>{masivo.aplicacionNombre || 'Sin aplicación'}</td>
                       <td>{masivo.tipoFallaNombre || 'Sin tipo'}</td>
-                      <td>{masivo.cantidadIncidentes}</td>
                       <td>{masivo.cantidadCavs}</td>
                       <td>
                         {formatearUsuarios(

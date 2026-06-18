@@ -181,20 +181,58 @@
 }
 
 .detalle-incidente__boton--peligro {
-  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  background: #e5292f;
   color: #ffffff;
-  box-shadow: 0 8px 16px rgba(220, 38, 38, 0.18);
+  box-shadow: 0 8px 16px rgba(229, 41, 47, 0.18);
 }
 
 .detalle-incidente__boton--peligro:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(220, 38, 38, 0.22);
+  background: #d91f26;
+  box-shadow: 0 10px 20px rgba(229, 41, 47, 0.22);
 }
 
 .detalle-incidente__boton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+.detalle-incidente__confirmacion-eliminar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 22px;
+  padding: 14px 16px;
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff7f7 0%, #fff1f1 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.detalle-incidente__confirmacion-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #7f1d1d;
+}
+
+.detalle-incidente__confirmacion-texto strong {
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.detalle-incidente__confirmacion-texto span {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.detalle-incidente__confirmacion-acciones {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 /* ── Bloques generales ──────────────────────────────────────── */
@@ -248,6 +286,98 @@
   gap: 10px;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+.detalle-incidente__campo-edicion input {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #111827;
+  background: #ffffff;
+}
+
+.detalle-incidente__campo-edicion input:focus {
+  outline: none;
+  border-color: #e30613;
+  box-shadow: 0 0 0 3px rgba(227, 6, 19, 0.1);
+}
+
+.detalle-incidente__edicion-apps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.detalle-incidente__edicion-apps-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detalle-incidente__edicion-apps-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 900;
+  color: #121a3a;
+}
+
+.detalle-incidente__tabla-edicion-head,
+.detalle-incidente__fila-edicion {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 44px;
+  gap: 12px;
+  align-items: center;
+}
+
+.detalle-incidente__tabla-edicion-head {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 900;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.detalle-incidente__tabla-edicion-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detalle-incidente__fila-edicion {
+  padding: 10px;
+  border: 1px solid #f0dede;
+  border-radius: 14px;
+  background: #fffafa;
+}
+
+.detalle-incidente__fila-numero {
+  font-size: 13px;
+  font-weight: 900;
+  color: #121a3a;
+  text-align: center;
+}
+
+.detalle-incidente__boton-quitar {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.detalle-incidente__boton-quitar:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* ── Tabla aplicaciones y tipos de falla ─────────────────────── */
@@ -327,12 +457,18 @@
   }
 
   .detalle-incidente__barra-acciones,
-  .detalle-incidente__acciones-edicion {
+  .detalle-incidente__acciones-edicion,
+  .detalle-incidente__confirmacion-acciones {
     justify-content: stretch;
   }
 
   .detalle-incidente__boton {
     width: 100%;
+  }
+
+  .detalle-incidente__confirmacion-eliminar {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .detalle-incidente__titulo {
@@ -341,6 +477,29 @@
 
   .detalle-incidente__tabla-apps {
     min-width: 460px;
+  }
+
+  .detalle-incidente__edicion-apps-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .detalle-incidente__tabla-edicion-head {
+    display: none;
+  }
+
+  .detalle-incidente__fila-edicion {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .detalle-incidente__fila-numero {
+    text-align: left;
+  }
+
+  .detalle-incidente__boton-quitar {
+    width: 100%;
   }
   
   .detalle-incidente__fechas {
