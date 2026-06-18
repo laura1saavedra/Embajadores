@@ -14,7 +14,7 @@ CRUD completo de incidentes:
 
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Header, Query
 from fastapi.responses import JSONResponse
 
 from schemas.incidente_schemas import (
@@ -23,9 +23,85 @@ from schemas.incidente_schemas import (
     CambioEstado,
 )
 from services.incidente_service import IncidenteService
+from services.auth_service import AuthService
 from services import whatsapp_service
 
 incidentes_router = APIRouter()
+
+
+def _extraer_token_authorization(authorization: Optional[str]):
+    if not authorization:
+        return None, JSONResponse(
+            status_code=401,
+            content={"error": "Token de autenticacion requerido"},
+        )
+
+    esquema, _, token = authorization.partition(" ")
+
+    if esquema.lower() != "bearer" or not token:
+        return None, JSONResponse(
+            status_code=401,
+            content={"error": "Formato de token invalido"},
+        )
+
+    return token, None
+
+
+def _validar_administrador(
+    authorization: Optional[str],
+    mensaje_permiso: str = "Solo un administrador puede cerrar incidentes",
+):
+    token, respuesta_error = _extraer_token_authorization(authorization)
+    if respuesta_error:
+        return None, respuesta_error
+
+    usuario, error = AuthService.obtener_usuario_por_token(token)
+    if error:
+        return None, JSONResponse(status_code=401, content={"error": error})
+
+    rol_nombre = (usuario.get("rol_nombre") or "").lower()
+    if "admin" not in rol_nombre:
+        return None, JSONResponse(
+            status_code=403,
+            content={"error": mensaje_permiso},
+        )
+
+    return usuario, None
+
+
+def _normalizar_permiso(nombre: str) -> str:
+    reemplazos = str.maketrans("áéíóúÁÉÍÓÚñÑ", "aeiouAEIOUnN")
+    return (nombre or "").translate(reemplazos).lower().strip()
+
+
+def _validar_permiso(
+    authorization: Optional[str],
+    permiso_requerido: str,
+    mensaje_permiso: str,
+):
+    token, respuesta_error = _extraer_token_authorization(authorization)
+    if respuesta_error:
+        return None, respuesta_error
+
+    usuario, error = AuthService.obtener_usuario_por_token(token)
+    if error:
+        return None, JSONResponse(status_code=401, content={"error": error})
+
+    permisos = usuario.get("permisos") or []
+    permiso_normalizado = _normalizar_permiso(permiso_requerido)
+    tiene_permiso = any(
+        _normalizar_permiso(permiso.get("name") or permiso.get("nombre_permiso"))
+        == permiso_normalizado
+        for permiso in permisos
+    )
+
+    if not tiene_permiso:
+        return None, JSONResponse(
+            status_code=403,
+            content={"error": mensaje_permiso},
+        )
+
+    return usuario, None
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -92,7 +168,27 @@ def obtener_incidente(id_incidente: int):
 
 
 @incidentes_router.put("/{id_incidente}")
-def actualizar_incidente(id_incidente: int, body: IncidenteActualizar):
+def actualizar_incidente(
+    id_incidente: int,
+    body: IncidenteActualizar,
+    authorization: Optional[str] = Header(default=None),
+):
+    _, respuesta_error = _validar_administrador(
+        authorization,
+        "Solo un administrador puede editar incidentes",
+    )
+    if respuesta_error:
+        return respuesta_error
+
+    if body.estado == "cerrado":
+        _, respuesta_error = _validar_permiso(
+            authorization,
+            "Cerrar incidente",
+            "No tienes permiso para cerrar incidentes",
+        )
+        if respuesta_error:
+            return respuesta_error
+
     # exclude_unset=True garantiza que solo se incluyan los campos enviados por el cliente
     datos = {
         k: v
@@ -113,7 +209,16 @@ def actualizar_incidente(id_incidente: int, body: IncidenteActualizar):
 async def cambiar_estado(
     id_incidente: int,
     body: CambioEstado,
+    authorization: Optional[str] = Header(default=None),
 ):
+    _, respuesta_error = _validar_permiso(
+        authorization,
+        "Cerrar incidente",
+        "No tienes permiso para cerrar incidentes",
+    )
+    if respuesta_error:
+        return respuesta_error
+
     resultado, error = IncidenteService.cambiar_estado(
         id_incidente=id_incidente,
         nuevo_estado=body.estado,
@@ -138,7 +243,17 @@ def obtener_historial(id_incidente: int):
 
 
 @incidentes_router.delete("/{id_incidente}")
-def eliminar_incidente(id_incidente: int):
+def eliminar_incidente(
+    id_incidente: int,
+    authorization: Optional[str] = Header(default=None),
+):
+    _, respuesta_error = _validar_administrador(
+        authorization,
+        "Solo un administrador puede eliminar incidentes",
+    )
+    if respuesta_error:
+        return respuesta_error
+
     resultado, error = IncidenteService.eliminar_incidente(id_incidente)
 
     if error:

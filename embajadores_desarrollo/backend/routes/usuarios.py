@@ -7,7 +7,7 @@ Endpoints para gestionar usuarios desde Configuracion Avanzada.
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
-from schemas.usuario_schemas import UsuarioActualizar, UsuarioCrear
+from schemas.usuario_schemas import RolActualizar, RolCrear, UsuarioActualizar, UsuarioCrear
 from services.usuario_service import UsuarioService
 
 
@@ -36,6 +36,66 @@ def listar_roles():
         return JSONResponse(status_code=500, content={"error": error})
 
     return datos
+
+
+@usuarios_router.get("/permisos")
+def listar_permisos():
+    datos, error = UsuarioService.listar_permisos()
+
+    if error:
+        return JSONResponse(status_code=500, content={"error": error})
+
+    return datos
+
+
+@usuarios_router.post("/roles", status_code=201)
+def crear_rol(body: RolCrear):
+    datos, error = UsuarioService.crear_rol(
+        nombre_rol=body.nombre_rol,
+        descripcion=body.descripcion,
+        permisos_ids=body.permisos_ids,
+    )
+
+    if error:
+        return JSONResponse(status_code=400, content={"error": error})
+
+    return datos
+
+
+@usuarios_router.put("/roles/{id_rol}")
+def actualizar_rol(
+    id_rol: int,
+    body: RolActualizar,
+):
+    datos_actualizar = body.model_dump(exclude_unset=True)
+
+    if not datos_actualizar:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Debe enviar al menos un campo para actualizar"},
+        )
+
+    datos, error = UsuarioService.actualizar_rol(
+        id_rol=id_rol,
+        **datos_actualizar,
+    )
+
+    if error:
+        codigo = 404 if "no encontrado" in error.lower() else 400
+        return JSONResponse(status_code=codigo, content={"error": error})
+
+    return datos
+
+
+@usuarios_router.delete("/roles/{id_rol}")
+def eliminar_rol(id_rol: int):
+    resultado, error = UsuarioService.eliminar_rol(id_rol)
+
+    if error:
+        codigo = 404 if "no encontrado" in error.lower() else 400
+        return JSONResponse(status_code=codigo, content={"error": error})
+
+    return resultado
 
 
 @usuarios_router.get("/{id_usuario}")
@@ -132,4 +192,3 @@ def eliminar_usuario(id_usuario: int):
         return JSONResponse(status_code=codigo, content={"error": error})
 
     return resultado
-

@@ -10,14 +10,64 @@ Endpoints para incidentes masivos:
 
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Header, Query
 from fastapi.responses import JSONResponse
 
 from schemas.masivo_schemas import MasivoCambioEstado
+from services.auth_service import AuthService
 from services.masivo_service import MasivoService
 
 
 masivos_router = APIRouter()
+
+
+def _extraer_token_authorization(authorization: Optional[str]):
+    if not authorization:
+        return None, JSONResponse(
+            status_code=401,
+            content={"error": "Token de autenticacion requerido"},
+        )
+
+    esquema, _, token = authorization.partition(" ")
+
+    if esquema.lower() != "bearer" or not token:
+        return None, JSONResponse(
+            status_code=401,
+            content={"error": "Formato de token invalido"},
+        )
+
+    return token, None
+
+
+def _normalizar_permiso(nombre: str) -> str:
+    reemplazos = str.maketrans("áéíóúÁÉÍÓÚñÑ", "aeiouAEIOUnN")
+    return (nombre or "").translate(reemplazos).lower().strip()
+
+
+def _validar_permiso(authorization: Optional[str], permiso_requerido: str):
+    token, respuesta_error = _extraer_token_authorization(authorization)
+    if respuesta_error:
+        return None, respuesta_error
+
+    usuario, error = AuthService.obtener_usuario_por_token(token)
+    if error:
+        return None, JSONResponse(status_code=401, content={"error": error})
+
+    permisos = usuario.get("permisos") or []
+    permiso_normalizado = _normalizar_permiso(permiso_requerido)
+    tiene_permiso = any(
+        _normalizar_permiso(permiso.get("name") or permiso.get("nombre_permiso"))
+        == permiso_normalizado
+        for permiso in permisos
+    )
+
+    if not tiene_permiso:
+        return None, JSONResponse(
+            status_code=403,
+            content={"error": "No tienes permiso para cerrar incidentes masivos"},
+        )
+
+    return usuario, None
 
 
 @masivos_router.get("/resumen")
@@ -58,7 +108,18 @@ def obtener_masivo(idmasivo: int):
 
 
 @masivos_router.patch("/{idmasivo}/cerrar")
-def cerrar_masivo(idmasivo: int, body: MasivoCambioEstado):
+def cerrar_masivo(
+    idmasivo: int,
+    body: MasivoCambioEstado,
+    authorization: Optional[str] = Header(default=None),
+):
+    _, respuesta_error = _validar_permiso(
+        authorization,
+        "Cerrar incidente masivo",
+    )
+    if respuesta_error:
+        return respuesta_error
+
     if body.estado != "cerrado":
         return JSONResponse(
             status_code=400,

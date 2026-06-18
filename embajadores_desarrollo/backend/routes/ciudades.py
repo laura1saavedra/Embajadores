@@ -102,7 +102,9 @@ def crear_ciudad(body: CiudadCrear):
 @ciudades_router.post("/completa", status_code=201)
 def crear_ciudad_completa(body: CiudadCompletaCrear):
 
-    nombre = body.nombre_ciudad.strip()    
+    nombre = body.nombre_ciudad.strip()
+
+    
 
     if not nombre:
         return JSONResponse(
