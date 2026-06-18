@@ -7,13 +7,15 @@ de contrasena temporal segura.
 """
 
 import logging
+import unicodedata
 from typing import Any, Dict, List, Optional, Tuple
 
+from sqlalchemy import func, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from db import get_db_session
-from models import Incidente, Rol, Usuario
+from models import Incidente, Permiso, Rol, RolPermiso, Usuario
 from utils.password_utils import generate_temp_password, hash_password
 from utils.security_utils import (
     validate_corporate_email,
@@ -23,12 +25,93 @@ from utils.security_utils import (
 
 logger = logging.getLogger(__name__)
 
+PERMISOS_BASE = [
+    "Registrar incidente",
+    "Ver historial de incidentes",
+    "Cerrar incidente",
+    "Ver incidentes masivos",
+    "Cerrar incidente masivo",
+    "Gestionar contactos WA",
+    "Gestionar configuracion avanzada",
+    "Editar incidente",
+]
+
+
+def _normalizar_nombre_permiso(nombre_permiso: Optional[str]) -> str:
+    texto = unicodedata.normalize("NFD", nombre_permiso or "")
+    texto_sin_tildes = "".join(
+        caracter
+        for caracter in texto
+        if unicodedata.category(caracter) != "Mn"
+    )
+    return " ".join(texto_sin_tildes.lower().split())
+
+
+def _deduplicar_permisos(permisos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    permisos_unicos: List[Dict[str, Any]] = []
+    claves_vistas = set()
+
+    for permiso in permisos:
+        clave = _normalizar_nombre_permiso(permiso.get("nombre_permiso"))
+
+        if clave in claves_vistas:
+            continue
+
+        claves_vistas.add(clave)
+        permisos_unicos.append(permiso)
+
+    return permisos_unicos
+
+
+def _asegurar_permisos_base(db) -> None:
+    db.execute(
+        text(
+            """
+            SELECT setval(
+                pg_get_serial_sequence('"API_PROD".permisos', 'idpermisos'),
+                GREATEST(
+                    COALESCE((SELECT MAX(idpermisos) FROM "API_PROD".permisos), 1),
+                    1
+                ),
+                true
+            )
+            """
+        )
+    )
+
+    permisos_existentes = {
+        _normalizar_nombre_permiso(permiso.nombre_permiso)
+        for permiso in db.query(Permiso).all()
+    }
+
+    for nombre_permiso in PERMISOS_BASE:
+        if _normalizar_nombre_permiso(nombre_permiso) not in permisos_existentes:
+            db.add(Permiso(nombre_permiso=nombre_permiso))
+
 
 def _rol_a_dict(rol: Rol) -> Dict[str, Any]:
+    permisos = _deduplicar_permisos([
+        {
+            "idpermisos": rol_permiso.permiso.idpermisos,
+            "nombre_permiso": rol_permiso.permiso.nombre_permiso,
+        }
+        for rol_permiso in (rol.permisos or [])
+        if rol_permiso.permiso
+    ])
+
     return {
         "idrol": rol.idrol,
         "nombre_rol": rol.nombre_rol,
         "descripcion": rol.descripcion,
+        "permisos_ids": [permiso["idpermisos"] for permiso in permisos],
+        "permisos": permisos,
+    }
+
+
+def _permiso_a_dict(permiso: Permiso) -> Dict[str, Any]:
+    return {
+        "idpermisos": permiso.idpermisos,
+        "nombre_permiso": permiso.nombre_permiso,
     }
 
 
@@ -68,7 +151,116 @@ def _validar_nombre_apellido(
     }, None
 
 
+def _validar_datos_rol(
+    nombre_rol: Optional[str],
+    descripcion: Optional[str],
+    requiere_nombre: bool = True,
+) -> Tuple[Optional[Dict[str, str]], Optional[str]]:
+    datos: Dict[str, str] = {}
+
+    if nombre_rol is not None:
+        nombre_limpio = " ".join(nombre_rol.strip().split())
+        if not nombre_limpio:
+            return None, "El nombre del rol es obligatorio"
+        if len(nombre_limpio) > 100:
+            return None, "El nombre del rol no puede superar 100 caracteres"
+        datos["nombre_rol"] = nombre_limpio
+    elif requiere_nombre:
+        return None, "El nombre del rol es obligatorio"
+
+    if descripcion is not None:
+        descripcion_limpia = " ".join(descripcion.strip().split())
+        if len(descripcion_limpia) > 255:
+            return None, "La descripcion del rol no puede superar 255 caracteres"
+        datos["descripcion"] = descripcion_limpia
+    elif requiere_nombre:
+        datos["descripcion"] = ""
+
+    return datos, None
+
+
+def _normalizar_permisos_ids(
+    permisos_ids: Optional[List[int]],
+) -> Tuple[Optional[List[int]], Optional[str]]:
+    if permisos_ids is None:
+        return None, None
+
+    permisos_limpios: List[int] = []
+
+    for permiso_id in permisos_ids:
+        try:
+            permiso_id_normalizado = int(permiso_id)
+        except (TypeError, ValueError):
+            return None, "Los permisos seleccionados no son validos"
+
+        if permiso_id_normalizado <= 0:
+            return None, "Los permisos seleccionados no son validos"
+
+        if permiso_id_normalizado not in permisos_limpios:
+            permisos_limpios.append(permiso_id_normalizado)
+
+    return permisos_limpios, None
+
+
+def _sincronizar_permisos_rol(
+    db,
+    rol_id: int,
+    permisos_ids: List[int],
+) -> Optional[str]:
+    permisos_existentes = (
+        db.query(Permiso.idpermisos)
+        .filter(Permiso.idpermisos.in_(permisos_ids))
+        .all()
+    )
+    permisos_existentes_ids = {permiso.idpermisos for permiso in permisos_existentes}
+    permisos_faltantes = set(permisos_ids) - permisos_existentes_ids
+
+    if permisos_faltantes:
+        return "Uno o mas permisos seleccionados no existen"
+
+    db.query(RolPermiso).filter(RolPermiso.rol_id == rol_id).delete()
+
+    for permiso_id in permisos_ids:
+        db.add(RolPermiso(rol_id=rol_id, permisos_id=permiso_id))
+
+    return None
+
+
+def _obtener_rol_con_permisos(db, rol_id: int) -> Optional[Rol]:
+    return (
+        db.query(Rol)
+        .options(joinedload(Rol.permisos).joinedload(RolPermiso.permiso))
+        .filter(Rol.idrol == rol_id)
+        .populate_existing()
+        .first()
+    )
+
+
 class UsuarioService:
+
+    @staticmethod
+    def listar_permisos() -> Tuple[Optional[List[Dict]], Optional[str]]:
+        try:
+            with get_db_session() as db:
+                _asegurar_permisos_base(db)
+                db.commit()
+
+                permisos = (
+                    db.query(Permiso)
+                    .order_by(Permiso.idpermisos.asc())
+                    .all()
+                )
+
+                permisos_respuesta = [
+                    _permiso_a_dict(permiso)
+                    for permiso in permisos
+                ]
+
+                return _deduplicar_permisos(permisos_respuesta), None
+
+        except Exception as e:
+            logger.error(f"Error al listar permisos: {e}")
+            return None, str(e)
 
     @staticmethod
     def listar_roles() -> Tuple[Optional[List[Dict]], Optional[str]]:
@@ -76,6 +268,7 @@ class UsuarioService:
             with get_db_session() as db:
                 roles = (
                     db.query(Rol)
+                    .options(joinedload(Rol.permisos).joinedload(RolPermiso.permiso))
                     .order_by(Rol.nombre_rol.asc())
                     .all()
                 )
@@ -84,6 +277,177 @@ class UsuarioService:
 
         except Exception as e:
             logger.error(f"Error al listar roles: {e}")
+            return None, str(e)
+
+    @staticmethod
+    def crear_rol(
+        nombre_rol: str,
+        descripcion: Optional[str] = "",
+        permisos_ids: Optional[List[int]] = None,
+    ) -> Tuple[Optional[Dict], Optional[str]]:
+        try:
+            datos_rol, error = _validar_datos_rol(nombre_rol, descripcion)
+            if error:
+                return None, error
+
+            permisos_normalizados, error = _normalizar_permisos_ids(permisos_ids or [])
+            if error:
+                return None, error
+
+            with get_db_session() as db:
+                existe_rol = (
+                    db.query(Rol)
+                    .filter(func.lower(Rol.nombre_rol) == datos_rol["nombre_rol"].lower())
+                    .first()
+                )
+
+                if existe_rol:
+                    return None, "Ya existe un rol con ese nombre"
+
+                nuevo_rol = Rol(
+                    nombre_rol=datos_rol["nombre_rol"],
+                    descripcion=datos_rol["descripcion"],
+                )
+
+                db.add(nuevo_rol)
+                db.flush()
+
+                error_permisos = _sincronizar_permisos_rol(
+                    db,
+                    nuevo_rol.idrol,
+                    permisos_normalizados or [],
+                )
+                if error_permisos:
+                    db.rollback()
+                    return None, error_permisos
+
+                db.commit()
+                db.refresh(nuevo_rol)
+
+                rol_creado = _obtener_rol_con_permisos(db, nuevo_rol.idrol)
+
+                return _rol_a_dict(rol_creado), None
+
+        except IntegrityError as e:
+            logger.error(f"Error de integridad al crear rol: {e}")
+            return None, "Ya existe un rol con ese nombre"
+        except Exception as e:
+            logger.error(f"Error al crear rol: {e}")
+            return None, str(e)
+
+    @staticmethod
+    def actualizar_rol(
+        id_rol: int,
+        nombre_rol: Optional[str] = None,
+        descripcion: Optional[str] = None,
+        permisos_ids: Optional[List[int]] = None,
+    ) -> Tuple[Optional[Dict], Optional[str]]:
+        try:
+            datos_rol, error = _validar_datos_rol(
+                nombre_rol,
+                descripcion,
+                requiere_nombre=False,
+            )
+            if error:
+                return None, error
+
+            permisos_normalizados, error = _normalizar_permisos_ids(permisos_ids)
+            if error:
+                return None, error
+
+            if not datos_rol and permisos_ids is None:
+                return None, "Debe enviar al menos un campo para actualizar"
+
+            with get_db_session() as db:
+                rol = (
+                    db.query(Rol)
+                    .options(joinedload(Rol.permisos).joinedload(RolPermiso.permiso))
+                    .filter(Rol.idrol == id_rol)
+                    .first()
+                )
+
+                if not rol:
+                    return None, "Rol no encontrado"
+
+                if "nombre_rol" in datos_rol:
+                    existe_rol = (
+                        db.query(Rol)
+                        .filter(
+                            Rol.idrol != id_rol,
+                            func.lower(Rol.nombre_rol) == datos_rol["nombre_rol"].lower(),
+                        )
+                        .first()
+                    )
+
+                    if existe_rol:
+                        return None, "Ya existe un rol con ese nombre"
+
+                    rol.nombre_rol = datos_rol["nombre_rol"]
+
+                if "descripcion" in datos_rol:
+                    rol.descripcion = datos_rol["descripcion"]
+
+                if permisos_normalizados is not None:
+                    error_permisos = _sincronizar_permisos_rol(
+                        db,
+                        id_rol,
+                        permisos_normalizados,
+                    )
+                    if error_permisos:
+                        db.rollback()
+                        return None, error_permisos
+
+                db.commit()
+
+                db.expire_all()
+                rol_actualizado = _obtener_rol_con_permisos(db, id_rol)
+
+                return _rol_a_dict(rol_actualizado), None
+
+        except IntegrityError as e:
+            logger.error(f"Error de integridad al actualizar rol {id_rol}: {e}")
+            return None, "Ya existe un rol con ese nombre"
+        except Exception as e:
+            logger.error(f"Error al actualizar rol {id_rol}: {e}")
+            return None, str(e)
+
+    @staticmethod
+    def eliminar_rol(id_rol: int) -> Tuple[Optional[Dict], Optional[str]]:
+        try:
+            with get_db_session() as db:
+                rol = (
+                    db.query(Rol)
+                    .filter(Rol.idrol == id_rol)
+                    .first()
+                )
+
+                if not rol:
+                    return None, "Rol no encontrado"
+
+                usuarios_asociados = (
+                    db.query(Usuario)
+                    .filter(Usuario.rol_id == id_rol)
+                    .first()
+                    is not None
+                )
+
+                if usuarios_asociados:
+                    return None, (
+                        "No se puede eliminar el rol porque tiene usuarios asociados. "
+                        "Cambia el rol de esos usuarios antes de eliminarlo."
+                    )
+
+                db.query(RolPermiso).filter(RolPermiso.rol_id == id_rol).delete()
+                db.delete(rol)
+                db.commit()
+
+                return {
+                    "eliminado": True,
+                    "idrol": id_rol,
+                }, None
+
+        except Exception as e:
+            logger.error(f"Error al eliminar rol {id_rol}: {e}")
             return None, str(e)
 
     @staticmethod

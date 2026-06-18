@@ -13,7 +13,7 @@ la aplicacion afectada del incidente se asocia automaticamente a ese masivo.
 
 import logging
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Tuple, Dict, Any, List
 
 from sqlalchemy.orm import joinedload
@@ -28,6 +28,13 @@ from models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _asegurar_timezone_utc(fecha: datetime) -> datetime:
+    if fecha.tzinfo is None:
+        return fecha.replace(tzinfo=timezone.utc)
+
+    return fecha.astimezone(timezone.utc)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -443,10 +450,13 @@ class MasivoService:
                     return None, "El incidente masivo ya esta cerrado"
 
                 masivo.estado = "cerrado"
-                masivo.fecha_hora_cierre = datetime.now()
+                masivo.fecha_hora_cierre = datetime.now(timezone.utc)
 
                 if masivo.fecha_hora_generado:
-                    diferencia = masivo.fecha_hora_cierre - masivo.fecha_hora_generado
+                    diferencia = (
+                        _asegurar_timezone_utc(masivo.fecha_hora_cierre)
+                        - _asegurar_timezone_utc(masivo.fecha_hora_generado)
+                    )
                     masivo.dias_activos = diferencia.days
 
                 db.commit()

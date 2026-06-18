@@ -437,11 +437,25 @@ class IncidenteService:
                 if not incidente:
                     return None, "Incidente no encontrado"
 
-                if incidente.estado == "cerrado":
-                    return None, "No se puede editar un incidente cerrado"
-
                 ciudad_id = datos.get("ciudad_id")
                 cav_id = datos.get("cav_id")
+
+                if "estado" in datos:
+                    nuevo_estado = datos.get("estado")
+
+                    if nuevo_estado not in ["abierto", "cerrado"]:
+                        return None, "Estado invalido. Solo se permite 'abierto' o 'cerrado'"
+
+                    estado_anterior = incidente.estado
+
+                    if estado_anterior != nuevo_estado:
+                        incidente.estado = nuevo_estado
+                        _registrar_historial(
+                            db,
+                            id_incidente,
+                            estado_anterior=estado_anterior,
+                            estado_nuevo=nuevo_estado,
+                        )
 
                 if ciudad_id and not cav_id:
                     return None, "Debe seleccionar un CAV correspondiente a la ciudad seleccionada"
@@ -517,7 +531,8 @@ class IncidenteService:
                         combinaciones.add(clave)
 
                     db.query(AplicacionAfectada).filter(
-                        AplicacionAfectada.incidente_id == id_incidente
+                        AplicacionAfectada.incidente_id == id_incidente,
+                        AplicacionAfectada.masivo_id.is_(None),
                     ).delete()
 
                     db.flush()

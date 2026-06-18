@@ -15,7 +15,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from db import get_db_session
-from models import Usuario
+from models import Rol, RolPermiso, Usuario
 from utils.jwt_utils import JWTUtils
 from utils.password_utils import (
     hash_password,
@@ -42,6 +42,15 @@ def _asegurar_timezone(fecha: datetime) -> datetime:
 
 def _usuario_a_user_data(usuario: Usuario) -> Dict[str, Any]:
     rol_nombre = usuario.rol.nombre_rol if usuario.rol else None
+    permisos = [
+        {
+            "id": rol_permiso.permiso.idpermisos,
+            "name": rol_permiso.permiso.nombre_permiso,
+            "nombre_permiso": rol_permiso.permiso.nombre_permiso,
+        }
+        for rol_permiso in (usuario.rol.permisos if usuario.rol else [])
+        if rol_permiso.permiso
+    ]
 
     return {
         "user_id": str(usuario.id_usuario),
@@ -62,8 +71,11 @@ def _usuario_a_user_data(usuario: Usuario) -> Dict[str, Any]:
                 "id": str(usuario.rol_id),
                 "name": rol_nombre,
                 "description": usuario.rol.descripcion if usuario.rol else None,
+                "permissions": permisos,
             }
         ] if usuario.rol else [],
+        "permisos": permisos,
+        "permisos_ids": [permiso["id"] for permiso in permisos],
         "last_login": (
             usuario.ultimo_login.isoformat()
             if usuario.ultimo_login else None
@@ -85,7 +97,11 @@ class AuthService:
             with get_db_session() as session:
                 usuario = (
                     session.query(Usuario)
-                    .options(joinedload(Usuario.rol))
+                    .options(
+                        joinedload(Usuario.rol)
+                        .joinedload(Rol.permisos)
+                        .joinedload(RolPermiso.permiso)
+                    )
                     .filter(Usuario.correo == correo)
                     .first()
                 )
@@ -178,6 +194,8 @@ class AuthService:
                     "correo": user_data["correo"],
                     "rol_id": user_data["rol_id"],
                     "rol_nombre": user_data["rol_nombre"],
+                    "permisos": user_data["permisos"],
+                    "permisos_ids": user_data["permisos_ids"],
                     "debe_cambiar_contrasena": user_data[
                         "debe_cambiar_contrasena"
                     ],
@@ -221,7 +239,11 @@ class AuthService:
             with get_db_session() as session:
                 usuario = (
                     session.query(Usuario)
-                    .options(joinedload(Usuario.rol))
+                    .options(
+                        joinedload(Usuario.rol)
+                        .joinedload(Rol.permisos)
+                        .joinedload(RolPermiso.permiso)
+                    )
                     .filter(Usuario.id_usuario == int(user_id))
                     .first()
                 )
@@ -262,7 +284,11 @@ class AuthService:
             with get_db_session() as session:
                 usuario = (
                     session.query(Usuario)
-                    .options(joinedload(Usuario.rol))
+                    .options(
+                        joinedload(Usuario.rol)
+                        .joinedload(Rol.permisos)
+                        .joinedload(RolPermiso.permiso)
+                    )
                     .filter(Usuario.id_usuario == int(user_id))
                     .first()
                 )

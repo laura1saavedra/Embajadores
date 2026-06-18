@@ -52,6 +52,7 @@ class IncidenteActualizar(BaseModel):
     usuario_id: Optional[int] = None
     usuarios_totalidad: Optional[int] = None
     usuarios_afectados: Optional[int] = None
+    estado: Optional[Literal["abierto", "cerrado"]] = None
     aplicaciones_afectadas: Optional[List[AplicacionAfectadaCrear]] = None
 
     @model_validator(mode="after")

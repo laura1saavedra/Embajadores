@@ -6,7 +6,7 @@ usuarios desde Configuracion Avanzada.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -17,6 +17,18 @@ class RolResumen(BaseModel):
     descripcion: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class RolCrear(BaseModel):
+    nombre_rol: str = Field(..., min_length=1, max_length=100)
+    descripcion: Optional[str] = Field(default="", max_length=255)
+    permisos_ids: List[int] = Field(default_factory=list)
+
+
+class RolActualizar(BaseModel):
+    nombre_rol: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    descripcion: Optional[str] = Field(default=None, max_length=255)
+    permisos_ids: Optional[List[int]] = None
 
 
 class UsuarioBase(BaseModel):

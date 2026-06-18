@@ -1,5 +1,3 @@
-# services/tipo_falla_service.py
-
 """
 services/tipo_falla_service.py
 
@@ -39,10 +37,6 @@ def _tipo_falla_a_dict(tipo: TipoFalla) -> Dict[str, Any]:
 
 class TipoFallaService:
 
-    # ─────────────────────────────────────────────────────────────
-    # Listar
-    # ─────────────────────────────────────────────────────────────
-
     @staticmethod
     def listar_tipos_falla() -> Tuple[Optional[List[Dict]], Optional[str]]:
         try:
@@ -58,10 +52,6 @@ class TipoFallaService:
         except Exception as e:
             logger.error(f"Error al listar tipos de falla: {e}")
             return None, str(e)
-
-    # ─────────────────────────────────────────────────────────────
-    # Obtener por ID
-    # ─────────────────────────────────────────────────────────────
 
     @staticmethod
     def obtener_tipo_falla(id_tipo_falla: int) -> Tuple[Optional[Dict], Optional[str]]:
@@ -81,10 +71,6 @@ class TipoFallaService:
         except Exception as e:
             logger.error(f"Error al obtener tipo de falla {id_tipo_falla}: {e}")
             return None, str(e)
-
-    # ─────────────────────────────────────────────────────────────
-    # Crear
-    # ─────────────────────────────────────────────────────────────
 
     @staticmethod
     def crear_tipo_falla(nombre_tipo: str) -> Tuple[Optional[Dict], Optional[str]]:
@@ -121,10 +107,6 @@ class TipoFallaService:
         except Exception as e:
             logger.error(f"Error al crear tipo de falla: {e}")
             return None, str(e)
-
-    # ─────────────────────────────────────────────────────────────
-    # Actualizar
-    # ─────────────────────────────────────────────────────────────
 
     @staticmethod
     def actualizar_tipo_falla(
@@ -177,10 +159,6 @@ class TipoFallaService:
             logger.error(f"Error al actualizar tipo de falla {id_tipo_falla}: {e}")
             return None, str(e)
 
-    # ─────────────────────────────────────────────────────────────
-    # Eliminar
-    # ─────────────────────────────────────────────────────────────
-
     @staticmethod
     def eliminar_tipo_falla(id_tipo_falla: int) -> Tuple[Optional[Dict], Optional[str]]:
         try:
@@ -229,7 +207,5 @@ class TipoFallaService:
                 }, None
 
         except Exception as e:
-            logger.error(
-                f"Error al eliminar tipo de falla {id_tipo_falla}: {e}"
-            )
+            logger.error(f"Error al eliminar tipo de falla {id_tipo_falla}: {e}")
             return None, str(e)
