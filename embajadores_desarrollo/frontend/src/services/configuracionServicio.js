@@ -29,6 +29,24 @@ const normalizarServicio = (servicio) => ({
   nombreAplicacion: servicio.nombre_aplicacion ?? '',
 });
 
+const asociarServiciosAAplicaciones = (aplicaciones, servicios) => {
+  const serviciosPorAplicacion = servicios.reduce((agrupados, servicio) => {
+    const aplicacionId = Number(servicio.aplicacionId);
+
+    if (!agrupados.has(aplicacionId)) {
+      agrupados.set(aplicacionId, []);
+    }
+
+    agrupados.get(aplicacionId).push(servicio);
+    return agrupados;
+  }, new Map());
+
+  return aplicaciones.map((app) => ({
+    ...app,
+    servicios: serviciosPorAplicacion.get(Number(app.idAplicacion)) || app.servicios || [],
+  }));
+};
+
 const normalizarTipoFalla = (tipo) => ({
   idTipoFalla: tipo.id_tipo_falla,
   nombreTipo: tipo.nombre_tipo,
@@ -97,8 +115,15 @@ class ConfiguracionServicio {
   // ─────────────────────────────────────────────────────────────
 
   async listarAplicaciones() {
-    const { data } = await apiClient.get(config.endpoints.aplicaciones());
-    return (data || []).map(normalizarAplicacion);
+    const [{ data: aplicacionesData }, { data: serviciosData }] = await Promise.all([
+      apiClient.get(config.endpoints.aplicaciones()),
+      apiClient.get(config.endpoints.servicios()),
+    ]);
+
+    const aplicaciones = (aplicacionesData || []).map(normalizarAplicacion);
+    const servicios = (serviciosData || []).map(normalizarServicio);
+
+    return asociarServiciosAAplicaciones(aplicaciones, servicios);
   }
 
   async crearAplicacion(nombreAplicacion) {
