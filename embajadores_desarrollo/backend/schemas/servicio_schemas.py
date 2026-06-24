@@ -14,11 +14,16 @@ class ServicioActualizar(BaseModel):
     aplicacion_id: Optional[int] = None
 
 
+class ServicioEstadoActualizar(BaseModel):
+    activo: bool
+
+
 class ServicioRespuesta(BaseModel):
     id_servicio: int
     nombre_servicio: str
     aplicacion_id: int
     nombre_aplicacion: Optional[str] = None
+    activo: bool = True
 
     class Config:
         from_attributes = True

@@ -8,7 +8,6 @@ import logging
 import unicodedata
 from typing import Optional, List, Tuple, Dict, Any
 
-from sqlalchemy import text
 from sqlalchemy.orm import joinedload
 
 from db import get_db_session
@@ -18,27 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def asegurar_tabla_servicios(db) -> None:
-    db.execute(text("""
-        CREATE TABLE IF NOT EXISTS "API_PROD".servicios (
-            id_servicio SERIAL PRIMARY KEY,
-            nombre_servicio VARCHAR(255) NOT NULL,
-            aplicacion_id INTEGER NOT NULL,
-            CONSTRAINT fk_servicios_aplicacion
-                FOREIGN KEY (aplicacion_id)
-                REFERENCES "API_PROD".aplicaciones(id_aplicacion)
-                ON UPDATE CASCADE
-                ON DELETE RESTRICT,
-            CONSTRAINT uq_servicio_aplicacion_nombre
-                UNIQUE (aplicacion_id, nombre_servicio)
-        )
-    """))
-
-    db.execute(text("""
-        CREATE INDEX IF NOT EXISTS ix_servicios_aplicacion_id
-        ON "API_PROD".servicios(aplicacion_id)
-    """))
-
-    db.commit()
+    return None
 
 
 def _normalizar_nombre(nombre: str) -> str:
@@ -59,6 +38,7 @@ def _servicio_a_dict(servicio: Servicio) -> Dict[str, Any]:
         "id_servicio": servicio.id_servicio,
         "nombre_servicio": servicio.nombre_servicio,
         "aplicacion_id": servicio.aplicacion_id,
+        "activo": servicio.activo,
         "nombre_aplicacion": (
             servicio.aplicacion.nombre_aplicacion
             if servicio.aplicacion
@@ -72,6 +52,7 @@ class ServicioService:
     @staticmethod
     def listar_servicios(
         aplicacion_id: Optional[int] = None,
+        solo_activos: bool = False,
     ) -> Tuple[Optional[List[Dict]], Optional[str]]:
         try:
             with get_db_session() as db:
@@ -81,6 +62,12 @@ class ServicioService:
 
                 if aplicacion_id:
                     query = query.filter(Servicio.aplicacion_id == aplicacion_id)
+
+                if solo_activos:
+                    query = query.filter(
+                        Servicio.activo.is_(True),
+                        Servicio.aplicacion.has(Aplicacion.activo.is_(True)),
+                    )
 
                 servicios = (
                     query
@@ -244,6 +231,42 @@ class ServicioService:
 
         except Exception as e:
             logger.error(f"Error al actualizar servicio {id_servicio}: {e}")
+            return None, str(e)
+
+    @staticmethod
+    def cambiar_estado_servicio(
+        id_servicio: int,
+        activo: bool,
+    ) -> Tuple[Optional[Dict], Optional[str]]:
+        try:
+            with get_db_session() as db:
+                asegurar_tabla_servicios(db)
+
+                servicio = (
+                    db.query(Servicio)
+                    .options(joinedload(Servicio.aplicacion))
+                    .filter(Servicio.id_servicio == id_servicio)
+                    .first()
+                )
+
+                if not servicio:
+                    return None, "Servicio no encontrado"
+
+                if activo and servicio.aplicacion and not servicio.aplicacion.activo:
+                    return None, (
+                        "No se puede habilitar el servicio porque la aplicacion "
+                        "asociada esta inhabilitada"
+                    )
+
+                servicio.activo = activo
+
+                db.commit()
+                db.refresh(servicio)
+
+                return _servicio_a_dict(servicio), None
+
+        except Exception as e:
+            logger.error(f"Error al cambiar estado del servicio {id_servicio}: {e}")
             return None, str(e)
 
     @staticmethod

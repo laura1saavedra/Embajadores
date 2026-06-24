@@ -12,9 +12,14 @@ class TipoFallaActualizar(BaseModel):
     nombre_tipo: Optional[str] = None
 
 
+class TipoFallaEstadoActualizar(BaseModel):
+    activo: bool
+
+
 class TipoFallaRespuesta(BaseModel):
     id_tipo_falla: int
     nombre_tipo: str
+    activo: bool = True
 
     class Config:
         from_attributes = True

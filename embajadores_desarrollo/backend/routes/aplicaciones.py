@@ -5,12 +5,13 @@ Endpoints para consultar, crear, editar y eliminar aplicaciones.
 Se usan desde el frontend para poblar selectores y para configuración avanzada.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from schemas.aplicacion_schemas import (
     AplicacionCrear,
     AplicacionActualizar,
+    AplicacionEstadoActualizar,
 )
 from services.aplicacion_service import AplicacionService
 
@@ -21,13 +22,39 @@ aplicaciones_router = APIRouter()
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @aplicaciones_router.get("/")
-def listar_aplicaciones():
+def listar_aplicaciones(
+    solo_activos: bool = Query(False, description="Retornar solo aplicaciones activas"),
+):
     """Lista todas las aplicaciones registradas, ordenadas por nombre."""
-    datos, error = AplicacionService.listar_aplicaciones()
+    datos, error = AplicacionService.listar_aplicaciones(
+        solo_activos=solo_activos
+    )
 
     if error:
         return JSONResponse(
             status_code=500,
+            content={"error": error}
+        )
+
+    return datos
+
+
+@aplicaciones_router.patch("/{id_aplicacion}/estado")
+def cambiar_estado_aplicacion(
+    id_aplicacion: int,
+    body: AplicacionEstadoActualizar,
+):
+    """Habilita o inhabilita una aplicacion."""
+    datos, error = AplicacionService.cambiar_estado_aplicacion(
+        id_aplicacion=id_aplicacion,
+        activo=body.activo,
+    )
+
+    if error:
+        codigo = 404 if "no encontrada" in error.lower() else 400
+
+        return JSONResponse(
+            status_code=codigo,
             content={"error": error}
         )
 

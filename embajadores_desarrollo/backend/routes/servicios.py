@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from schemas.servicio_schemas import (
     ServicioCrear,
     ServicioActualizar,
+    ServicioEstadoActualizar,
 )
 from services.servicio_service import ServicioService
 
@@ -22,11 +23,32 @@ servicios_router = APIRouter()
 @servicios_router.get("/")
 def listar_servicios(
     aplicacion_id: Optional[int] = Query(None, description="Filtrar por aplicacion"),
+    solo_activos: bool = Query(False, description="Retornar solo servicios activos"),
 ):
-    datos, error = ServicioService.listar_servicios(aplicacion_id=aplicacion_id)
+    datos, error = ServicioService.listar_servicios(
+        aplicacion_id=aplicacion_id,
+        solo_activos=solo_activos,
+    )
 
     if error:
         return JSONResponse(status_code=500, content={"error": error})
+
+    return datos
+
+
+@servicios_router.patch("/{id_servicio}/estado")
+def cambiar_estado_servicio(
+    id_servicio: int,
+    body: ServicioEstadoActualizar,
+):
+    datos, error = ServicioService.cambiar_estado_servicio(
+        id_servicio=id_servicio,
+        activo=body.activo,
+    )
+
+    if error:
+        codigo = 404 if "no encontrado" in error.lower() else 400
+        return JSONResponse(status_code=codigo, content={"error": error})
 
     return datos
 

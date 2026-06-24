@@ -191,6 +191,7 @@ class TipoFalla(Base):
 
     id_tipo_falla = Column(Integer, primary_key=True, autoincrement=True)
     nombre_tipo = Column(String(100), nullable=False, unique=True)
+    activo = Column(Boolean, nullable=False, default=True)
 
     aplicaciones_afectadas = relationship(
         "AplicacionAfectada",
@@ -267,6 +268,7 @@ class Aplicacion(Base):
 
     id_aplicacion = Column(Integer, primary_key=True, autoincrement=True)
     nombre_aplicacion = Column(String(255), nullable=False)
+    activo = Column(Boolean, nullable=False, default=True)
 
     servicios = relationship(
         "Servicio",
@@ -295,6 +297,7 @@ class Servicio(Base):
 
     id_servicio = Column(Integer, primary_key=True, autoincrement=True)
     nombre_servicio = Column(String(255), nullable=False)
+    activo = Column(Boolean, nullable=False, default=True)
     aplicacion_id = Column(
         Integer,
         ForeignKey("API_PROD.aplicaciones.id_aplicacion", ondelete="RESTRICT", onupdate="CASCADE"),

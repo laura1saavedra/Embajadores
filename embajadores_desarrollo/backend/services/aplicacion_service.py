@@ -35,11 +35,13 @@ def _aplicacion_a_dict(aplicacion: Aplicacion) -> Dict[str, Any]:
     return {
         "id_aplicacion": aplicacion.id_aplicacion,
         "nombre_aplicacion": aplicacion.nombre_aplicacion,
+        "activo": aplicacion.activo,
         "servicios": [
             {
                 "id_servicio": servicio.id_servicio,
                 "nombre_servicio": servicio.nombre_servicio,
                 "aplicacion_id": servicio.aplicacion_id,
+                "activo": servicio.activo,
             }
             for servicio in sorted(
                 aplicacion.servicios or [],
@@ -52,14 +54,23 @@ def _aplicacion_a_dict(aplicacion: Aplicacion) -> Dict[str, Any]:
 class AplicacionService:
 
     @staticmethod
-    def listar_aplicaciones() -> Tuple[Optional[List[Dict]], Optional[str]]:
+    def listar_aplicaciones(
+        solo_activos: bool = False,
+    ) -> Tuple[Optional[List[Dict]], Optional[str]]:
         try:
             with get_db_session() as db:
                 asegurar_tabla_servicios(db)
 
-                aplicaciones = (
+                query = (
                     db.query(Aplicacion)
                     .options(joinedload(Aplicacion.servicios))
+                )
+
+                if solo_activos:
+                    query = query.filter(Aplicacion.activo.is_(True))
+
+                aplicaciones = (
+                    query
                     .order_by(Aplicacion.nombre_aplicacion.asc())
                     .all()
                 )
@@ -181,6 +192,40 @@ class AplicacionService:
 
         except Exception as e:
             logger.error(f"Error al actualizar aplicación {id_aplicacion}: {e}")
+            return None, str(e)
+
+    @staticmethod
+    def cambiar_estado_aplicacion(
+        id_aplicacion: int,
+        activo: bool,
+    ) -> Tuple[Optional[Dict], Optional[str]]:
+        try:
+            with get_db_session() as db:
+                asegurar_tabla_servicios(db)
+
+                aplicacion = (
+                    db.query(Aplicacion)
+                    .options(joinedload(Aplicacion.servicios))
+                    .filter(Aplicacion.id_aplicacion == id_aplicacion)
+                    .first()
+                )
+
+                if not aplicacion:
+                    return None, "AplicaciÃ³n no encontrada"
+
+                aplicacion.activo = activo
+
+                if not activo:
+                    for servicio in aplicacion.servicios or []:
+                        servicio.activo = False
+
+                db.commit()
+                db.refresh(aplicacion)
+
+                return _aplicacion_a_dict(aplicacion), None
+
+        except Exception as e:
+            logger.error(f"Error al cambiar estado de aplicaciÃ³n {id_aplicacion}: {e}")
             return None, str(e)
 
     @staticmethod

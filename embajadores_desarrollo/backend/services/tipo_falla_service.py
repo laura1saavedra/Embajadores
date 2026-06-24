@@ -32,17 +32,25 @@ def _tipo_falla_a_dict(tipo: TipoFalla) -> Dict[str, Any]:
     return {
         "id_tipo_falla": tipo.id_tipo_falla,
         "nombre_tipo": tipo.nombre_tipo,
+        "activo": tipo.activo,
     }
 
 
 class TipoFallaService:
 
     @staticmethod
-    def listar_tipos_falla() -> Tuple[Optional[List[Dict]], Optional[str]]:
+    def listar_tipos_falla(
+        solo_activos: bool = False,
+    ) -> Tuple[Optional[List[Dict]], Optional[str]]:
         try:
             with get_db_session() as db:
+                query = db.query(TipoFalla)
+
+                if solo_activos:
+                    query = query.filter(TipoFalla.activo.is_(True))
+
                 tipos = (
-                    db.query(TipoFalla)
+                    query
                     .order_by(TipoFalla.nombre_tipo.asc())
                     .all()
                 )
@@ -157,6 +165,33 @@ class TipoFallaService:
 
         except Exception as e:
             logger.error(f"Error al actualizar tipo de falla {id_tipo_falla}: {e}")
+            return None, str(e)
+
+    @staticmethod
+    def cambiar_estado_tipo_falla(
+        id_tipo_falla: int,
+        activo: bool,
+    ) -> Tuple[Optional[Dict], Optional[str]]:
+        try:
+            with get_db_session() as db:
+                tipo = (
+                    db.query(TipoFalla)
+                    .filter(TipoFalla.id_tipo_falla == id_tipo_falla)
+                    .first()
+                )
+
+                if not tipo:
+                    return None, "Tipo de falla no encontrado"
+
+                tipo.activo = activo
+
+                db.commit()
+                db.refresh(tipo)
+
+                return _tipo_falla_a_dict(tipo), None
+
+        except Exception as e:
+            logger.error(f"Error al cambiar estado de tipo de falla {id_tipo_falla}: {e}")
             return None, str(e)
 
     @staticmethod

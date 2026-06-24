@@ -5,12 +5,13 @@ Endpoints para consultar, crear, editar y eliminar tipos de falla.
 Se usan desde el frontend para poblar selectores y para configuración avanzada.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from schemas.tipo_falla_schemas import (
     TipoFallaCrear,
     TipoFallaActualizar,
+    TipoFallaEstadoActualizar,
 )
 from services.tipo_falla_service import TipoFallaService
 
@@ -19,11 +20,32 @@ tipos_falla_router = APIRouter()
 
 
 @tipos_falla_router.get("/")
-def listar_tipos_falla():
-    datos, error = TipoFallaService.listar_tipos_falla()
+def listar_tipos_falla(
+    solo_activos: bool = Query(False, description="Retornar solo tipos de falla activos"),
+):
+    datos, error = TipoFallaService.listar_tipos_falla(
+        solo_activos=solo_activos
+    )
 
     if error:
         return JSONResponse(status_code=500, content={"error": error})
+
+    return datos
+
+
+@tipos_falla_router.patch("/{id_tipo_falla}/estado")
+def cambiar_estado_tipo_falla(
+    id_tipo_falla: int,
+    body: TipoFallaEstadoActualizar,
+):
+    datos, error = TipoFallaService.cambiar_estado_tipo_falla(
+        id_tipo_falla=id_tipo_falla,
+        activo=body.activo,
+    )
+
+    if error:
+        codigo = 404 if "no encontrado" in error.lower() else 400
+        return JSONResponse(status_code=codigo, content={"error": error})
 
     return datos
 
