@@ -65,9 +65,9 @@ function ConfiguracionAvanzada() {
     {
       id: 'aplicaciones-tipos',
       icono: 'AT',
-      titulo: 'Aplicaciones / Tipos de falla',
+      titulo: 'Aplicaciones-Servicios / Tipos de falla',
       descripcion:
-        'Administra las aplicaciones y los tipos de falla disponibles en la plataforma.',
+        'Administra las aplicaciones, sus servicios asociados y los tipos de falla disponibles en la plataforma.',
       total: totalAplicaciones + totalTiposFalla,
       clase: 'rojo',
       accion: () => setVistaActiva('aplicaciones-tipos'),
@@ -115,6 +115,14 @@ function ConfiguracionAvanzada() {
             {mensajeError && (
               <div className="configuracion__alerta configuracion__alerta--error">
                 {mensajeError}
+                <button
+                  type="button"
+                  className="configuracion__alerta-cerrar"
+                  onClick={() => setMensajeError('')}
+                  aria-label="Cerrar mensaje"
+                >
+                  ×
+                </button>
               </div>
             )}
 

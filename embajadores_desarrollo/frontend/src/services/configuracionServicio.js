@@ -13,11 +13,13 @@ import config from '../config/config.js';
 const normalizarAplicacion = (app) => ({
   idAplicacion: app.id_aplicacion,
   nombreAplicacion: app.nombre_aplicacion,
+  activo: app.activo !== false,
   servicios: Array.isArray(app.servicios)
     ? app.servicios.map((servicio) => ({
         idServicio: servicio.id_servicio,
         nombreServicio: servicio.nombre_servicio,
         aplicacionId: servicio.aplicacion_id,
+        activo: servicio.activo !== false,
       }))
     : [],
 });
@@ -27,6 +29,7 @@ const normalizarServicio = (servicio) => ({
   nombreServicio: servicio.nombre_servicio,
   aplicacionId: servicio.aplicacion_id,
   nombreAplicacion: servicio.nombre_aplicacion ?? '',
+  activo: servicio.activo !== false,
 });
 
 const asociarServiciosAAplicaciones = (aplicaciones, servicios) => {
@@ -50,6 +53,7 @@ const asociarServiciosAAplicaciones = (aplicaciones, servicios) => {
 const normalizarTipoFalla = (tipo) => ({
   idTipoFalla: tipo.id_tipo_falla,
   nombreTipo: tipo.nombre_tipo,
+  activo: tipo.activo !== false,
 });
 
 const normalizarCavSimple = (cav) => ({
@@ -153,6 +157,15 @@ class ConfiguracionServicio {
     return data;
   }
 
+  async cambiarEstadoAplicacion(idAplicacion, activo) {
+    const { data } = await apiClient.patch(
+      `${config.endpoints.aplicaciones()}/${idAplicacion}/estado`,
+      { activo }
+    );
+
+    return normalizarAplicacion(data);
+  }
+
   // Servicios
 
   async listarServicios(aplicacionId = '') {
@@ -193,6 +206,15 @@ class ConfiguracionServicio {
     return data;
   }
 
+  async cambiarEstadoServicio(idServicio, activo) {
+    const { data } = await apiClient.patch(
+      `${config.endpoints.servicios()}/${idServicio}/estado`,
+      { activo }
+    );
+
+    return normalizarServicio(data);
+  }
+
   // ─────────────────────────────────────────────────────────────
   // Tipos de falla
   // ─────────────────────────────────────────────────────────────
@@ -227,6 +249,15 @@ class ConfiguracionServicio {
     );
 
     return data;
+  }
+
+  async cambiarEstadoTipoFalla(idTipoFalla, activo) {
+    const { data } = await apiClient.patch(
+      `${config.endpoints.tiposFalla()}/${idTipoFalla}/estado`,
+      { activo }
+    );
+
+    return normalizarTipoFalla(data);
   }
 
   // ─────────────────────────────────────────────────────────────

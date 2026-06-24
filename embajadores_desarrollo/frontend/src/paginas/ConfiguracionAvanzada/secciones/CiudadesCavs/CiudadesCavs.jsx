@@ -496,12 +496,28 @@ function CiudadesCavs({ onVolver }) {
       {mensajeError && (
         <div className="configuracion__alerta configuracion__alerta--error">
           {mensajeError}
+          <button
+            type="button"
+            className="configuracion__alerta-cerrar"
+            onClick={() => setMensajeError('')}
+            aria-label="Cerrar mensaje"
+          >
+            ×
+          </button>
         </div>
       )}
 
       {mensajeExito && (
         <div className="configuracion__alerta configuracion__alerta--exito">
           {mensajeExito}
+          <button
+            type="button"
+            className="configuracion__alerta-cerrar"
+            onClick={() => setMensajeExito('')}
+            aria-label="Cerrar mensaje"
+          >
+            ×
+          </button>
         </div>
       )}
 

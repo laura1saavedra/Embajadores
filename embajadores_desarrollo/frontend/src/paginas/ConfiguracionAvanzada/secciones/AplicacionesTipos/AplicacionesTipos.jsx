@@ -616,6 +616,64 @@ function AplicacionesTipos({ onVolver }) {
     }
   };
 
+  const cambiarEstadoAplicacion = async (app) => {
+    try {
+      setGuardando(true);
+      limpiarMensajes();
+
+      await configuracionServicio.cambiarEstadoAplicacion(
+        app.idAplicacion,
+        !app.activo
+      );
+
+      setAplicacionExpandida(app.idAplicacion);
+      await cargarDatos();
+
+      setMensajeExito(
+        app.activo
+          ? 'Aplicacion inhabilitada correctamente. Tambien se inhabilitaron los servicios asociados.'
+          : 'Aplicacion habilitada correctamente.'
+      );
+      subirAlInicio();
+    } catch (error) {
+      setMensajeError(
+        error.message || 'No fue posible cambiar el estado de la aplicacion.'
+      );
+      subirAlInicio();
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const cambiarEstadoServicio = async (servicio, app) => {
+    try {
+      setGuardando(true);
+      limpiarMensajes();
+
+      await configuracionServicio.cambiarEstadoServicio(
+        servicio.idServicio,
+        !servicio.activo
+      );
+
+      setAplicacionExpandida(app.idAplicacion);
+      await cargarDatos();
+
+      setMensajeExito(
+        servicio.activo
+          ? 'Servicio inhabilitado correctamente.'
+          : 'Servicio habilitado correctamente.'
+      );
+      subirAlInicio();
+    } catch (error) {
+      setMensajeError(
+        error.message || 'No fue posible cambiar el estado del servicio.'
+      );
+      subirAlInicio();
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   const confirmarEliminarTipoFalla = async () => {
     if (!eliminandoTipoFalla) return;
 
@@ -642,6 +700,34 @@ function AplicacionesTipos({ onVolver }) {
     }
   };
 
+  const cambiarEstadoTipoFalla = async (tipo) => {
+    try {
+      setGuardando(true);
+      limpiarMensajes();
+
+      await configuracionServicio.cambiarEstadoTipoFalla(
+        tipo.idTipoFalla,
+        !tipo.activo
+      );
+
+      await cargarDatos();
+
+      setMensajeExito(
+        tipo.activo
+          ? 'Tipo de falla inhabilitado correctamente.'
+          : 'Tipo de falla habilitado correctamente.'
+      );
+      subirAlInicio();
+    } catch (error) {
+      setMensajeError(
+        error.message || 'No fue posible cambiar el estado del tipo de falla.'
+      );
+      subirAlInicio();
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   const opcionesAplicaciones = aplicaciones.map((app) => ({
     valor: String(app.idAplicacion),
     etiqueta: app.nombreAplicacion,
@@ -651,7 +737,7 @@ function AplicacionesTipos({ onVolver }) {
     return (
       <section className="aplicaciones-tipos">
         <p className="aplicaciones-tipos__texto-simple">
-          Cargando aplicaciones y tipos de falla...
+          Cargando aplicaciones, servicios y tipos de falla...
         </p>
       </section>
     );
@@ -670,12 +756,12 @@ function AplicacionesTipos({ onVolver }) {
 
         <div className="aplicaciones-tipos__titulo">
           <h1>
-            Aplicaciones <span>/ Tipos de falla</span>
+            Aplicaciones-Servicios<span>/Tipos de falla</span>
           </h1>
 
           <p>
-            Administra las aplicaciones y tipos de falla utilizados durante el
-            registro de incidentes.
+            Administra las aplicaciones, sus servicios asociados y los tipos de
+            falla utilizados durante el registro de incidentes.
           </p>
         </div>
       </div>
@@ -683,12 +769,28 @@ function AplicacionesTipos({ onVolver }) {
       {mensajeError && (
         <div className="configuracion__alerta configuracion__alerta--error">
           {mensajeError}
+          <button
+            type="button"
+            className="configuracion__alerta-cerrar"
+            onClick={() => setMensajeError('')}
+            aria-label="Cerrar mensaje"
+          >
+            ×
+          </button>
         </div>
       )}
 
       {mensajeExito && (
         <div className="configuracion__alerta configuracion__alerta--exito">
           {mensajeExito}
+          <button
+            type="button"
+            className="configuracion__alerta-cerrar"
+            onClick={() => setMensajeExito('')}
+            aria-label="Cerrar mensaje"
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -702,15 +804,31 @@ function AplicacionesTipos({ onVolver }) {
               </div>
 
               <div className="aplicaciones-tipos__header-derecha">
-                <input
-                  type="text"
-                  placeholder="Buscar aplicación..."
-                  value={busquedaAplicacion}
-                  onChange={(evento) => {
-                    setBusquedaAplicacion(evento.target.value);
-                    setPaginaAplicaciones(1);
-                  }}
-                />
+                <div className="aplicaciones-tipos__buscador">
+                  <input
+                    type="text"
+                    placeholder="Buscar aplicación..."
+                    value={busquedaAplicacion}
+                    onChange={(evento) => {
+                      setBusquedaAplicacion(evento.target.value);
+                      setPaginaAplicaciones(1);
+                    }}
+                  />
+
+                  {busquedaAplicacion.trim().length > 0 && (
+                    <button
+                      type="button"
+                      className="aplicaciones-tipos__limpiar-busqueda"
+                      onClick={() => {
+                        setBusquedaAplicacion('');
+                        setPaginaAplicaciones(1);
+                      }}
+                      aria-label="Limpiar busqueda de aplicaciones"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
 
                 {totalPaginasAplicaciones > 1 && (
                   <div className="aplicaciones-tipos__paginacion-mini">
@@ -754,6 +872,7 @@ function AplicacionesTipos({ onVolver }) {
                   <tr>
                     <th>Aplicación</th>
                     <th>Servicios asociados</th>
+                    <th>Estado</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -783,6 +902,18 @@ function AplicacionesTipos({ onVolver }) {
                         </td>
 
                         <td>
+                          <span
+                            className={`aplicaciones-tipos__estado ${
+                              app.activo
+                                ? 'aplicaciones-tipos__estado--activo'
+                                : 'aplicaciones-tipos__estado--inactivo'
+                            }`}
+                          >
+                            {app.activo ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </td>
+
+                        <td>
                           <div className="aplicaciones-tipos__acciones">
                             <button
                               type="button"
@@ -790,6 +921,15 @@ function AplicacionesTipos({ onVolver }) {
                               disabled={guardando}
                             >
                               Editar
+                            </button>
+
+                            <button
+                              type="button"
+                              className="aplicaciones-tipos__accion-estado"
+                              onClick={() => cambiarEstadoAplicacion(app)}
+                              disabled={guardando}
+                            >
+                              {app.activo ? 'Inhabilitar' : 'Habilitar'}
                             </button>
 
                             <button
@@ -806,7 +946,7 @@ function AplicacionesTipos({ onVolver }) {
 
                       {aplicacionExpandida === app.idAplicacion && (
                         <tr className="aplicaciones-tipos__fila-expandida">
-                          <td colSpan="3">
+                          <td colSpan="4">
                             <div className="aplicaciones-tipos__servicios-expandido">
                               {(app.servicios || []).length === 0 ? (
                                 <p className="aplicaciones-tipos__texto-simple">
@@ -821,6 +961,15 @@ function AplicacionesTipos({ onVolver }) {
                                     >
                                       <span className="aplicaciones-tipos__servicio-nombre">
                                         {servicio.nombreServicio}
+                                        <span
+                                          className={`aplicaciones-tipos__estado aplicaciones-tipos__estado--servicio ${
+                                            servicio.activo
+                                              ? 'aplicaciones-tipos__estado--activo'
+                                              : 'aplicaciones-tipos__estado--inactivo'
+                                          }`}
+                                        >
+                                          {servicio.activo ? 'Activo' : 'Inhabilitado'}
+                                        </span>
                                       </span>
 
                                       <div className="aplicaciones-tipos__acciones">
@@ -832,6 +981,17 @@ function AplicacionesTipos({ onVolver }) {
                                           disabled={guardando}
                                         >
                                           Editar
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          className="aplicaciones-tipos__accion-estado"
+                                          onClick={() =>
+                                            cambiarEstadoServicio(servicio, app)
+                                          }
+                                          disabled={guardando || (!servicio.activo && !app.activo)}
+                                        >
+                                          {servicio.activo ? 'Inhabilitar' : 'Habilitar'}
                                         </button>
 
                                         <button
@@ -878,15 +1038,31 @@ function AplicacionesTipos({ onVolver }) {
               </div>
 
               <div className="aplicaciones-tipos__header-derecha">
-                <input
-                  type="text"
-                  placeholder="Buscar tipo..."
-                  value={busquedaTipo}
-                  onChange={(evento) => {
-                    setBusquedaTipo(evento.target.value);
-                    setPaginaTipos(1);
-                  }}
-                />
+                <div className="aplicaciones-tipos__buscador">
+                  <input
+                    type="text"
+                    placeholder="Buscar tipo..."
+                    value={busquedaTipo}
+                    onChange={(evento) => {
+                      setBusquedaTipo(evento.target.value);
+                      setPaginaTipos(1);
+                    }}
+                  />
+
+                  {busquedaTipo.trim().length > 0 && (
+                    <button
+                      type="button"
+                      className="aplicaciones-tipos__limpiar-busqueda"
+                      onClick={() => {
+                        setBusquedaTipo('');
+                        setPaginaTipos(1);
+                      }}
+                      aria-label="Limpiar busqueda de tipos de falla"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
 
                 {totalPaginasTipos > 1 && (
                   <div className="aplicaciones-tipos__paginacion-mini">
@@ -925,6 +1101,7 @@ function AplicacionesTipos({ onVolver }) {
                 <thead>
                   <tr>
                     <th>Tipo de falla</th>
+                    <th>Estado</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -937,6 +1114,18 @@ function AplicacionesTipos({ onVolver }) {
                       </td>
 
                       <td>
+                        <span
+                          className={`aplicaciones-tipos__estado ${
+                            tipo.activo
+                              ? 'aplicaciones-tipos__estado--activo'
+                              : 'aplicaciones-tipos__estado--inactivo'
+                          }`}
+                        >
+                          {tipo.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+
+                      <td>
                         <div className="aplicaciones-tipos__acciones">
                           <button
                             type="button"
@@ -944,6 +1133,15 @@ function AplicacionesTipos({ onVolver }) {
                             disabled={guardando}
                           >
                             Editar
+                          </button>
+
+                          <button
+                            type="button"
+                            className="aplicaciones-tipos__accion-estado"
+                            onClick={() => cambiarEstadoTipoFalla(tipo)}
+                            disabled={guardando}
+                          >
+                            {tipo.activo ? 'Inhabilitar' : 'Habilitar'}
                           </button>
 
                           <button
@@ -961,7 +1159,7 @@ function AplicacionesTipos({ onVolver }) {
 
                   {tiposFiltrados.length === 0 && (
                     <tr>
-                      <td colSpan="2">
+                      <td colSpan="3">
                         <p className="aplicaciones-tipos__sin-datos">
                           No se encontraron tipos de falla.
                         </p>

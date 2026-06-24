@@ -33,12 +33,14 @@ const normalizarUsuario = (u) => ({
 const normalizarAplicacion = (a) => ({
   id: String(a.id_aplicacion),
   nombre: a.nombre_aplicacion,
+  activo: a.activo !== false,
 });
 
 const normalizarServicio = (s) => ({
   id: String(s.id_servicio),
   nombre: s.nombre_servicio,
   aplicacionId: String(s.aplicacion_id || ''),
+  activo: s.activo !== false,
 });
 
 const normalizarAplicacionesAfectadas = (raw) => {
@@ -252,21 +254,28 @@ class IncidenteServicio {
   }
 
   async obtenerAplicaciones() {
-    const { data } = await apiClient.get(config.endpoints.aplicaciones());
+    const { data } = await apiClient.get(
+      `${config.endpoints.aplicaciones()}?solo_activos=true`
+    );
     return (data || []).map(normalizarAplicacion);
   }
 
   async obtenerServicios() {
-    const { data } = await apiClient.get(config.endpoints.servicios());
+    const { data } = await apiClient.get(
+      `${config.endpoints.servicios()}?solo_activos=true`
+    );
     return (data || []).map(normalizarServicio);
   }
 
   async obtenerTiposFalla() {
-    const { data } = await apiClient.get(config.endpoints.tiposFalla());
+    const { data } = await apiClient.get(
+      `${config.endpoints.tiposFalla()}?solo_activos=true`
+    );
 
     return (data || []).map((t) => ({
       id: String(t.id_tipo_falla),
       nombre: t.nombre_tipo,
+      activo: t.activo !== false,
     }));
   }
 
