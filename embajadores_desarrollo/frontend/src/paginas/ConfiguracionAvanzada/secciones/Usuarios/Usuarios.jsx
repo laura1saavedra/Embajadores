@@ -20,7 +20,7 @@ const ROL_FORM_INICIAL = {
 };
 
 const ELEMENTOS_POR_PAGINA = 4;
-const ROLES_POR_PAGINA = 3;
+const ROLES_POR_PAGINA = 2;
 
 const obtenerClaseBadgeRol = (nombreRol = '') => {
   const rolNormalizado = nombreRol.toLowerCase();
