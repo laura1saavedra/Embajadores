@@ -2,15 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import LayoutPrincipal from '../../componentes/layout/LayoutPrincipal/LayoutPrincipal';
 import ContenedorPagina from '../../componentes/layout/ContenedorPagina/ContenedorPagina';
+import EtiquetaRol from '../../componentes/layout/EtiquetaRol/EtiquetaRol';
 import FiltrosIncidentes from '../../componentes/incidentes/FiltrosIncidentes/FiltrosIncidentes';
 import ListaIncidentes from '../../componentes/incidentes/ListaIncidentes/ListaIncidentes';
 import incidenteServicio from '../../services/incidenteServicio';
 
 import './HistorialIncidentes.css';
 
-const INCIDENTES_VISIBLES_INICIALES = 8;
+const INCIDENTES_VISIBLES_INICIALES = 7;
 
-// ── Fecha actual para filtros iniciales ──────────────────────────────────────
+// Fecha actual para filtros iniciales.
 
 const obtenerFechaActual = () => {
   const fecha = new Date();
@@ -22,7 +23,7 @@ const obtenerFechaActual = () => {
   };
 };
 
-// ── Filtros iniciales ────────────────────────────────────────────────────────
+// Filtros iniciales.
 
 const crearFiltrosIniciales = () => {
   const fechaActual = obtenerFechaActual();
@@ -32,6 +33,7 @@ const crearFiltrosIniciales = () => {
     estado: '',
     ciudadId: '',
     cavId: '',
+    aplicacionId: '',
     tipoFalla: '',
     anio: fechaActual.anio,
     mes: fechaActual.mes,
@@ -39,7 +41,7 @@ const crearFiltrosIniciales = () => {
   };
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers.
 
 const crearTextoResumido = (lista = [], limite = 2) => {
   const elementos = lista.filter(Boolean);
@@ -53,7 +55,46 @@ const crearTextoResumido = (lista = [], limite = 2) => {
   } más`;
 };
 
-const filtrarIncidentesIndividuales = (lista = []) => {
+const normalizarTexto = (valor) =>
+  String(valor || '').trim().toLowerCase();
+
+const filtrarAplicacionesPorFiltros = (
+  aplicaciones = [],
+  incidente,
+  filtrosActivos = {}
+) => {
+  const aplicacionId = String(filtrosActivos.aplicacionId || '');
+  const tipoFalla = normalizarTexto(filtrosActivos.tipoFalla);
+  const busqueda = normalizarTexto(filtrosActivos.busqueda);
+  const busquedaCoincideConId =
+    busqueda &&
+    String(incidente.idIncidente || '').includes(busqueda);
+
+  return aplicaciones.filter((app) => {
+    if (aplicacionId && String(app.aplicacionId) !== aplicacionId) {
+      return false;
+    }
+
+    if (
+      tipoFalla &&
+      !normalizarTexto(app.tipoFallaNombre).includes(tipoFalla)
+    ) {
+      return false;
+    }
+
+    if (!busqueda || busquedaCoincideConId) {
+      return true;
+    }
+
+    return [
+      app.aplicacionNombre,
+      app.servicioNombre,
+      app.tipoFallaNombre,
+    ].some((valor) => normalizarTexto(valor).includes(busqueda));
+  });
+};
+
+const filtrarIncidentesIndividuales = (lista = [], filtrosActivos = {}) => {
   return lista
     .map((incidente) => {
       const aplicacionesIndividuales =
@@ -61,19 +102,25 @@ const filtrarIncidentesIndividuales = (lista = []) => {
           (app) => !app.masivoId
         ) || [];
 
-      if (aplicacionesIndividuales.length === 0) {
+      const aplicacionesFiltradas = filtrarAplicacionesPorFiltros(
+        aplicacionesIndividuales,
+        incidente,
+        filtrosActivos
+      );
+
+      if (aplicacionesFiltradas.length === 0) {
         return null;
       }
 
       return {
         ...incidente,
-        aplicacionesAfectadas: aplicacionesIndividuales,
+        aplicacionesAfectadas: aplicacionesFiltradas,
         aplicacionesTexto: crearTextoResumido(
-          aplicacionesIndividuales.map((a) => a.aplicacionNombre),
+          aplicacionesFiltradas.map((a) => a.aplicacionNombre),
           2
         ),
         tiposFallaTexto: crearTextoResumido(
-          aplicacionesIndividuales.map((a) => a.tipoFallaNombre),
+          aplicacionesFiltradas.map((a) => a.tipoFallaNombre),
           2
         ),
       };
@@ -81,13 +128,14 @@ const filtrarIncidentesIndividuales = (lista = []) => {
     .filter(Boolean);
 };
 
-// ── Componente ───────────────────────────────────────────────────────────────
+// Componente.
 
 function HistorialIncidentes() {
   const [incidentes, setIncidentes] = useState([]);
 
   const [ciudades, setCiudades] = useState([]);
   const [cavsDisponibles, setCavsDisponibles] = useState([]);
+  const [aplicaciones, setAplicaciones] = useState([]);
   const [tiposFalla, setTiposFalla] = useState([]);
 
   const [filtros, setFiltros] = useState(crearFiltrosIniciales());
@@ -161,20 +209,24 @@ function HistorialIncidentes() {
       const [
         incidentesRespuesta,
         ciudadesRespuesta,
+        aplicacionesRespuesta,
         tiposFallaRespuesta,
       ] = await Promise.all([
         incidenteServicio.listarIncidentes(filtrosIniciales),
         incidenteServicio.obtenerCiudades(),
+        incidenteServicio.obtenerAplicaciones(),
         incidenteServicio.obtenerTiposFalla(),
       ]);
 
       const incidentesIndividuales = filtrarIncidentesIndividuales(
-        incidentesRespuesta
+        incidentesRespuesta,
+        filtrosIniciales
       );
 
       setFiltros(filtrosIniciales);
       setIncidentes(incidentesIndividuales);
       setCiudades(ciudadesRespuesta);
+      setAplicaciones(aplicacionesRespuesta);
       setTiposFalla(tiposFallaRespuesta);
 
       actualizarResumen(incidentesIndividuales);
@@ -202,6 +254,7 @@ function HistorialIncidentes() {
     setFiltros((prev) => ({
       ...prev,
       [nombreReal]: value,
+      ...(nombreReal === 'ciudadId' ? { cavId: '' } : {}),
     }));
   };
 
@@ -211,7 +264,10 @@ function HistorialIncidentes() {
       setMensajeError('');
 
       const respuesta = await incidenteServicio.listarIncidentes(filtros);
-      const incidentesIndividuales = filtrarIncidentesIndividuales(respuesta);
+      const incidentesIndividuales = filtrarIncidentesIndividuales(
+        respuesta,
+        filtros
+      );
 
       setIncidentes(incidentesIndividuales);
       actualizarResumen(incidentesIndividuales);
@@ -240,7 +296,10 @@ function HistorialIncidentes() {
         filtrosReiniciados
       );
 
-      const incidentesIndividuales = filtrarIncidentesIndividuales(respuesta);
+      const incidentesIndividuales = filtrarIncidentesIndividuales(
+        respuesta,
+        filtrosReiniciados
+      );
 
       setIncidentes(incidentesIndividuales);
       actualizarResumen(incidentesIndividuales);
@@ -312,9 +371,7 @@ function HistorialIncidentes() {
       <ContenedorPagina>
         <section className="historial-incidentes__hero">
           <div className="historial-incidentes__hero-texto">
-            <span className="historial-incidentes__hero-etiqueta">
-              Embajador/a
-            </span>
+            <EtiquetaRol className="historial-incidentes__hero-etiqueta" />
 
             <h1 className="historial-incidentes__hero-titulo">
               Historial de <span>incidentes</span>
@@ -377,6 +434,7 @@ function HistorialIncidentes() {
                 filtros={filtrosParaVista}
                 ciudades={ciudades}
                 cavsDisponibles={cavsDisponibles}
+                aplicaciones={aplicaciones}
                 tiposFalla={tiposFalla}
                 cantidadFiltrosActivos={cantidadFiltrosActivos}
                 cargando={cargandoFiltros}

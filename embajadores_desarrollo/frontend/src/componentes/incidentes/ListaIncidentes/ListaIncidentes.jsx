@@ -36,11 +36,12 @@ function ListaIncidentes({
           <tr>
             <th>ID</th>
             <th>Ciudad</th>
-            <th>CAV</th>
+            <th>CAVs afectados</th>
             <th>Aplicación</th>
             <th>Tipo de falla</th>
             <th>Estado</th>
             <th>Usuarios afectados</th>
+            <th>Usuarios en operación</th>
             <th>Fecha de reporte</th>
             <th>Acciones</th>
           </tr>
@@ -99,10 +100,15 @@ function ListaIncidentes({
                 <EstadoIncidente estado={incidente.estado} />
               </td>
 
-              <td>
-                {incidente.usuariosTotalidad
-                  ? `${incidente.usuariosAfectados} / ${incidente.usuariosTotalidad}`
-                  : incidente.usuariosAfectados}
+              <td className="lista-incidentes__celda-numero">
+                {incidente.usuariosAfectados}
+              </td>
+
+              <td className="lista-incidentes__celda-numero">
+                {incidente.usuariosOperacion !== null &&
+                incidente.usuariosOperacion !== undefined
+                  ? incidente.usuariosOperacion
+                  : 'Sin información'}
               </td>
 
               <td>
@@ -126,3 +132,4 @@ function ListaIncidentes({
 }
 
 export default ListaIncidentes;
+

@@ -9,9 +9,6 @@
 import apiClient from './api';
 import config from '../config/config';
 
-export const DIAS_ACTIVOS_MASIVOS_KEY = 'embajadores.diasActivosMasivosCerrados';
-export const DIAS_ACTIVOS_MASIVOS_DEFAULT = 30;
-
 // ── Normalizadores ──────────────────────────────────────────────────────────
 
 const normalizarIncidenteDeCav = (i) => ({
@@ -22,7 +19,7 @@ const normalizarIncidenteDeCav = (i) => ({
   tipoFallaId: String(i.tipo_falla_id || ''),
 
   usuariosAfectados: i.usuarios_afectados ?? 0,
-  usuariosTotalidad: i.usuarios_totalidad ?? null,
+  usuariosOperacion: i.usuarios_operacion ?? null,
 
   estado: i.estado || 'abierto',
   fechaHoraReporte: i.fecha_hora_reporte || null,
@@ -36,7 +33,7 @@ const normalizarCavAfectado = (cav) => ({
   ciudadNombre: cav.ciudad_nombre || '',
 
   usuariosAfectados: cav.usuarios_afectados ?? 0,
-  usuariosTotalidad: cav.usuarios_totalidad ?? null,
+  usuariosOperacion: cav.usuarios_operacion ?? null,
 
   cantidadIncidentes: cav.cantidad_incidentes ?? 0,
 
@@ -54,7 +51,7 @@ const normalizarMasivo = (m) => ({
   tipoFallaId: String(m.tipo_falla_id || ''),
   tipoFallaNombre: m.nombre_tipo_falla || '',
 
-  usuariosTotales: m.usuarios_totales ?? null,
+  usuariosOperacion: m.usuarios_totales ?? null,
   usuariosAfectados: m.usuarios_totales_afectados ?? 0,
 
   cantidadIncidentes: m.cantidad_incidentes ?? 0,
@@ -64,82 +61,9 @@ const normalizarMasivo = (m) => ({
 
   fechaHoraGenerado: m.fecha_hora_generado || null,
   fechaHoraCierre: m.fecha_hora_cierre || null,
+  notaCierre: m.nota_cierre || '',
 
-  diasActivos: m.dias_activos ?? null,
 });
-
-export const obtenerDiasActivosMasivos = () => {
-  if (typeof window === 'undefined') {
-    return DIAS_ACTIVOS_MASIVOS_DEFAULT;
-  }
-
-  const valorGuardado = Number(
-    window.localStorage.getItem(DIAS_ACTIVOS_MASIVOS_KEY)
-  );
-
-  if (!Number.isFinite(valorGuardado) || valorGuardado < 1) {
-    return DIAS_ACTIVOS_MASIVOS_DEFAULT;
-  }
-
-  return valorGuardado;
-};
-
-export const guardarDiasActivosMasivos = (dias) => {
-  const diasNormalizados = Math.min(
-    365,
-    Math.max(1, Number(dias) || DIAS_ACTIVOS_MASIVOS_DEFAULT)
-  );
-
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(
-      DIAS_ACTIVOS_MASIVOS_KEY,
-      String(diasNormalizados)
-    );
-  }
-
-  return diasNormalizados;
-};
-
-export const obtenerDiasActivosMasivosRemoto = async () => {
-  try {
-    const { data } = await apiClient.get(
-      config.endpoints.configuracionDiasActivosMasivos()
-    );
-
-    const diasActivos = Number(data?.dias_activos);
-    const diasNormalizados =
-      Number.isFinite(diasActivos) && diasActivos >= 1
-        ? diasActivos
-        : DIAS_ACTIVOS_MASIVOS_DEFAULT;
-
-    guardarDiasActivosMasivos(diasNormalizados);
-
-    return diasNormalizados;
-  } catch (error) {
-    return obtenerDiasActivosMasivos();
-  }
-};
-
-const masivoCerradoEstaActivo = (masivo, diasActivos) => {
-  if (masivo.estado !== 'cerrado') {
-    return true;
-  }
-
-  if (!masivo.fechaHoraCierre) {
-    return true;
-  }
-
-  const fechaCierre = new Date(masivo.fechaHoraCierre);
-
-  if (Number.isNaN(fechaCierre.getTime())) {
-    return true;
-  }
-
-  const fechaLimite = new Date();
-  fechaLimite.setDate(fechaLimite.getDate() - diasActivos);
-
-  return fechaCierre >= fechaLimite;
-};
 
 const normalizarDetalleMasivo = (m) => ({
   ...normalizarMasivo(m),
@@ -167,7 +91,6 @@ class MasivoServicio {
     const query = params.toString() ? `?${params.toString()}` : '';
 
     const { data } = await apiClient.get(config.endpoints.masivos(query));
-    const diasActivos = await obtenerDiasActivosMasivosRemoto();
 
     return (data || [])
       .map(normalizarMasivo)
@@ -176,7 +99,7 @@ class MasivoServicio {
           return true;
         }
 
-        return incluirCerrados && masivoCerradoEstaActivo(masivo, diasActivos);
+        return incluirCerrados;
       });
   }
 
@@ -191,8 +114,9 @@ class MasivoServicio {
 
     return {
       ...resumen,
-      total: resumen.abiertos ?? 0,
-      cerrados: 0,
+      total: resumen.total ?? 0,
+      abiertos: resumen.abiertos ?? 0,
+      cerrados: resumen.cerrados ?? 0,
     };
   }
 
@@ -204,10 +128,13 @@ class MasivoServicio {
     return normalizarDetalleMasivo(data);
   }
 
-  async cerrarMasivo(idMasivo) {
+  async cerrarMasivo(idMasivo, notaCierre = '') {
     const { data } = await apiClient.patch(
       config.endpoints.masivoCerrar(idMasivo),
-      { estado: 'cerrado' }
+      {
+        estado: 'cerrado',
+        nota_cierre: notaCierre,
+      }
     );
 
     return data;
@@ -217,3 +144,4 @@ class MasivoServicio {
 const masivoServicio = new MasivoServicio();
 
 export default masivoServicio;
+

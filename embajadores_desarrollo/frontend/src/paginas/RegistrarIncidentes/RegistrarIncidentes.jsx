@@ -3,47 +3,71 @@ import { Link } from 'react-router-dom';
 
 import LayoutPrincipal from '../../componentes/layout/LayoutPrincipal/LayoutPrincipal';
 import ContenedorPagina from '../../componentes/layout/ContenedorPagina/ContenedorPagina';
+import EtiquetaRol from '../../componentes/layout/EtiquetaRol/EtiquetaRol';
 import SelectBuscable from '../../componentes/incidentes/SelectBuscable/SelectBuscable';
 import incidenteServicio from '../../services/incidenteServicio';
 
 import './RegistrarIncidentes.css';
 
-// ── Constantes ────────────────────────────────────────────────────────────────
-
 const ESTADO_INICIAL = {
   ciudadId: '',
   cavId: '',
   usuariosAfectados: '',
-  usuariosTotalidad: '',
+  usuariosOperacion: '',
+};
+
+const CAMPOS_USUARIOS_NUMERICOS = new Set([
+  'usuariosAfectados',
+  'usuariosOperacion',
+]);
+
+const sanitizarEntero = (valor) => valor.replace(/\D/g, '');
+
+const bloquearCaracterNoNumerico = (evento) => {
+  if (evento.ctrlKey || evento.metaKey || evento.altKey) return;
+
+  const teclasPermitidas = [
+    'Backspace',
+    'Delete',
+    'Tab',
+    'Enter',
+    'Escape',
+    'ArrowLeft',
+    'ArrowRight',
+    'ArrowUp',
+    'ArrowDown',
+    'Home',
+    'End',
+  ];
+
+  if (teclasPermitidas.includes(evento.key)) return;
+
+  if (!/^\d$/.test(evento.key)) {
+    evento.preventDefault();
+  }
 };
 
 const crearFila = () => ({
   id: Date.now() + Math.random(),
   aplicacionId: '',
+  servicioId: '',
   tipoFallaId: '',
 });
-
-// ── Componente ────────────────────────────────────────────────────────────────
 
 function RegistrarIncidente() {
   const avisoRef = useRef(null);
   const [formulario, setFormulario] = useState(ESTADO_INICIAL);
-
   const [ciudades, setCiudades] = useState([]);
   const [cavs, setCavs] = useState([]);
-
   const [aplicaciones, setAplicaciones] = useState([]);
+  const [servicios, setServicios] = useState([]);
   const [tiposFalla, setTiposFalla] = useState([]);
-
   const [guardando, setGuardando] = useState(false);
-
   const [mensajeExito, setMensajeExito] = useState('');
   const [mensajeError, setMensajeError] = useState('');
   const [versionAviso, setVersionAviso] = useState(0);
-
   const [idRegistrado, setIdRegistrado] = useState(null);
   const [tipoRegistro, setTipoRegistro] = useState('');
-
   const [filasAplicaciones, setFilasAplicaciones] = useState([
     crearFila(),
   ]);
@@ -58,8 +82,6 @@ function RegistrarIncidente() {
       });
     });
   }, [versionAviso, mensajeExito, mensajeError]);
-
-  // ── Carga inicial ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     const init = async () => {
@@ -76,6 +98,12 @@ function RegistrarIncidente() {
       }
 
       try {
+        setServicios(await incidenteServicio.obtenerServicios());
+      } catch {
+        setServicios([]);
+      }
+
+      try {
         setTiposFalla(await incidenteServicio.obtenerTiposFalla());
       } catch {
         setTiposFalla([]);
@@ -84,8 +112,6 @@ function RegistrarIncidente() {
 
     init();
   }, []);
-
-  // ── CAVs ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!formulario.ciudadId) {
@@ -99,21 +125,22 @@ function RegistrarIncidente() {
       .catch(() => setCavs([]));
   }, [formulario.ciudadId]);
 
-  // ── Handlers formulario ────────────────────────────────────────────────────
-
   const manejarCambio = (e) => {
     const { name, value } = e.target;
+    const valor = CAMPOS_USUARIOS_NUMERICOS.has(name)
+      ? sanitizarEntero(value)
+      : value;
 
     if (name === 'ciudadId') {
       setFormulario((prev) => ({
         ...prev,
-        ciudadId: value,
+        ciudadId: valor,
         cavId: '',
       }));
     } else {
       setFormulario((prev) => ({
         ...prev,
-        [name]: value,
+        [name]: valor,
       }));
     }
 
@@ -124,7 +151,11 @@ function RegistrarIncidente() {
     setFilasAplicaciones((prev) =>
       prev.map((fila) =>
         fila.id === filaId
-          ? { ...fila, [campo]: valor }
+          ? {
+              ...fila,
+              [campo]: valor,
+              ...(campo === 'aplicacionId' ? { servicioId: '' } : {}),
+            }
           : fila
       )
     );
@@ -156,8 +187,6 @@ function RegistrarIncidente() {
     setVersionAviso((prev) => prev + 1);
   };
 
-  // ── Limpiar ────────────────────────────────────────────────────────────────
-
   const manejarLimpiar = () => {
     setFormulario(ESTADO_INICIAL);
     setCavs([]);
@@ -168,28 +197,27 @@ function RegistrarIncidente() {
     setTipoRegistro('');
   };
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
-
   const manejarSubmit = async (e) => {
     e.preventDefault();
 
     if (
       !formulario.ciudadId ||
       !formulario.cavId ||
-      formulario.usuariosAfectados === ''
+      formulario.usuariosAfectados === '' ||
+      formulario.usuariosOperacion === ''
     ) {
       mostrarErrorSubmit('Completa todos los campos obligatorios (*).');
       return;
     }
 
     const filasValidas = filasAplicaciones.filter(
-      (fila) => fila.aplicacionId && fila.tipoFallaId
+      (fila) => fila.aplicacionId && fila.servicioId && fila.tipoFallaId
     );
 
     const combinaciones = new Set();
 
     for (const fila of filasValidas) {
-      const clave = `${fila.aplicacionId}-${fila.tipoFallaId}`;
+      const clave = `${fila.aplicacionId}-${fila.servicioId}-${fila.tipoFallaId}`;
 
       if (combinaciones.has(clave)) {
         mostrarErrorSubmit(
@@ -209,25 +237,25 @@ function RegistrarIncidente() {
     }
 
     const usuariosAfectados = Number(formulario.usuariosAfectados);
+    const usuariosOperacion = Number(formulario.usuariosOperacion);
 
-    const usuariosTotalidad =
-      formulario.usuariosTotalidad !== ''
-        ? Number(formulario.usuariosTotalidad)
-        : null;
-
-    if (usuariosAfectados < 0) {
+    if (usuariosAfectados <= 0) {
       mostrarErrorSubmit(
-        'Los usuarios afectados no pueden ser negativos.'
+        'Los usuarios afectados deben ser mayores que cero.'
       );
       return;
     }
 
-    if (
-      usuariosTotalidad !== null &&
-      usuariosAfectados > usuariosTotalidad
-    ) {
+    if (usuariosOperacion <= 0) {
       mostrarErrorSubmit(
-        'Los usuarios afectados no pueden ser mayores que los usuarios totales.'
+        'Los usuarios en operación deben ser mayores que cero.'
+      );
+      return;
+    }
+
+    if (usuariosAfectados > usuariosOperacion) {
+      mostrarErrorSubmit(
+        'Los usuarios afectados no pueden ser mayores que los usuarios en operación.'
       );
       return;
     }
@@ -244,7 +272,6 @@ function RegistrarIncidente() {
       setFormulario(ESTADO_INICIAL);
       setCavs([]);
       setFilasAplicaciones([crearFila()]);
-
       setIdRegistrado(creado.idIncidente);
       setTipoRegistro(creado.tipoRegistro);
       mostrarExitoSubmit(creado.mensaje);
@@ -256,8 +283,6 @@ function RegistrarIncidente() {
       setGuardando(false);
     }
   };
-
-  // ── Datos derivados ────────────────────────────────────────────────────────
 
   const opcionesCiudades = ciudades.map((c) => ({
     valor: c.idCiudad,
@@ -279,14 +304,20 @@ function RegistrarIncidente() {
     etiqueta: t.nombre,
   }));
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const obtenerOpcionesServicios = (aplicacionId) =>
+    servicios
+      .filter((servicio) => servicio.aplicacionId === aplicacionId)
+      .map((servicio) => ({
+        valor: servicio.id,
+        etiqueta: servicio.nombre,
+      }));
 
   return (
     <LayoutPrincipal>
       <ContenedorPagina>
         <section className="ri__hero">
           <div className="ri__hero-texto">
-            <span className="ri__hero-etiqueta">Embajador/a</span>
+            <EtiquetaRol className="ri__hero-etiqueta" />
 
             <h1 className="ri__hero-titulo">
               Registra un <span>incidente</span>
@@ -377,25 +408,30 @@ function RegistrarIncidente() {
                   <input
                     id="usuariosAfectados"
                     name="usuariosAfectados"
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={formulario.usuariosAfectados}
                     onChange={manejarCambio}
+                    onKeyDown={bloquearCaracterNoNumerico}
                   />
                 </div>
 
                 <div className="ri__campo">
-                  <label htmlFor="usuariosTotalidad">
-                    Usuarios totales
+                  <label htmlFor="usuariosOperacion">
+                    Usuarios en operación{' '}
+                    <span className="ri__requerido">*</span>
                   </label>
 
                   <input
-                    id="usuariosTotalidad"
-                    name="usuariosTotalidad"
-                    type="number"
-                    min="0"
-                    value={formulario.usuariosTotalidad}
+                    id="usuariosOperacion"
+                    name="usuariosOperacion"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={formulario.usuariosOperacion}
                     onChange={manejarCambio}
+                    onKeyDown={bloquearCaracterNoNumerico}
                   />
                 </div>
               </div>
@@ -409,7 +445,7 @@ function RegistrarIncidente() {
                   className="ri__bloque-titulo"
                   style={{ marginBottom: 0 }}
                 >
-                  Aplicaciones afectadas y tipo de falla{' '}
+                  Aplicaciones afectadas, servicio y tipo de falla{' '}
                   <span className="ri__requerido">*</span>
                 </h2>
 
@@ -425,6 +461,7 @@ function RegistrarIncidente() {
               <div className="ri__tabla-head">
                 <span className="ri__tabla-head-num">#</span>
                 <span>Aplicación</span>
+                <span>Servicio</span>
                 <span>Tipo de falla</span>
                 <span />
               </div>
@@ -451,6 +488,27 @@ function RegistrarIncidente() {
                     />
 
                     <SelectBuscable
+                      id={`servicio-${fila.id}`}
+                      valor={fila.servicioId}
+                      opciones={obtenerOpcionesServicios(fila.aplicacionId)}
+                      onChange={(e) =>
+                        manejarCambioFila(
+                          fila.id,
+                          'servicioId',
+                          e.target.value
+                        )
+                      }
+                      placeholder={
+                        fila.aplicacionId
+                          ? 'Seleccione servicio'
+                          : 'Primero seleccione aplicacion'
+                      }
+                      placeholderBusqueda="Buscar servicio..."
+                      sinResultadosTexto="Sin servicios"
+                      disabled={!fila.aplicacionId}
+                    />
+
+                    <SelectBuscable
                       id={`tipo-${fila.id}`}
                       valor={fila.tipoFallaId}
                       opciones={opcionesTiposFalla}
@@ -473,7 +531,7 @@ function RegistrarIncidente() {
                       disabled={filasAplicaciones.length === 1}
                       title="Quitar fila"
                     >
-                      ✕
+                      x
                     </button>
                   </div>
                 ))}

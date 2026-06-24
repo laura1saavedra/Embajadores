@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 
 import configuracionServicio from '../../../../services/configuracionServicio';
 
@@ -6,6 +6,12 @@ import './AplicacionesTipos.css';
 
 const FORM_INICIAL = {
   nombre: '',
+  nuevosServicios: [''],
+};
+
+const FORM_SERVICIO_INICIAL = {
+  nombre: '',
+  aplicacionId: '',
 };
 
 const ELEMENTOS_POR_PAGINA = 4;
@@ -19,14 +25,18 @@ function AplicacionesTipos({ onVolver }) {
 
   const [paginaAplicaciones, setPaginaAplicaciones] = useState(1);
   const [paginaTipos, setPaginaTipos] = useState(1);
+  const [aplicacionExpandida, setAplicacionExpandida] = useState(null);
 
   const [formAplicacion, setFormAplicacion] = useState(FORM_INICIAL);
+  const [formServicio, setFormServicio] = useState(FORM_SERVICIO_INICIAL);
   const [formTipoFalla, setFormTipoFalla] = useState(FORM_INICIAL);
 
   const [editandoAplicacion, setEditandoAplicacion] = useState(null);
+  const [editandoServicio, setEditandoServicio] = useState(null);
   const [editandoTipoFalla, setEditandoTipoFalla] = useState(null);
 
   const [eliminandoAplicacion, setEliminandoAplicacion] = useState(null);
+  const [eliminandoServicio, setEliminandoServicio] = useState(null);
   const [eliminandoTipoFalla, setEliminandoTipoFalla] = useState(null);
 
   const [guardando, setGuardando] = useState(false);
@@ -34,6 +44,7 @@ function AplicacionesTipos({ onVolver }) {
 
   const [mensajeError, setMensajeError] = useState('');
   const [mensajeExito, setMensajeExito] = useState('');
+  const [mostrarNuevosServicios, setMostrarNuevosServicios] = useState(false);
 
   const inicioRef = useRef(null);
 
@@ -90,9 +101,17 @@ function AplicacionesTipos({ onVolver }) {
 
     if (!texto) return aplicaciones;
 
-    return aplicaciones.filter((app) =>
-      app.nombreAplicacion.toLowerCase().includes(texto)
-    );
+    return aplicaciones.filter((app) => {
+      const coincideAplicacion = app.nombreAplicacion
+        .toLowerCase()
+        .includes(texto);
+
+      const coincideServicio = (app.servicios || []).some((servicio) =>
+        servicio.nombreServicio.toLowerCase().includes(texto)
+      );
+
+      return coincideAplicacion || coincideServicio;
+    });
   }, [aplicaciones, busquedaAplicacion]);
 
   const tiposFiltrados = useMemo(() => {
@@ -132,12 +151,21 @@ function AplicacionesTipos({ onVolver }) {
   const aplicacionSinCambios =
   editandoAplicacion &&
   normalizarParaComparar(formAplicacion.nombre) ===
-    normalizarParaComparar(editandoAplicacion.nombreAplicacion);
+    normalizarParaComparar(editandoAplicacion.nombreAplicacion) &&
+  formAplicacion.nuevosServicios.every(
+    (servicio) => servicio.trim().length === 0
+  );
 
   const tipoFallaSinCambios =
     editandoTipoFalla &&
     normalizarParaComparar(formTipoFalla.nombre) ===
       normalizarParaComparar(editandoTipoFalla.nombreTipo);
+
+  const servicioSinCambios =
+    editandoServicio &&
+    normalizarParaComparar(formServicio.nombre) ===
+      normalizarParaComparar(editandoServicio.nombreServicio) &&
+    Number(formServicio.aplicacionId) === Number(editandoServicio.aplicacionId);
 
   const mostrarLimpiarAplicacion = formAplicacion.nombre.trim().length > 0;
   const mostrarLimpiarTipoFalla = formTipoFalla.nombre.trim().length > 0;
@@ -152,6 +180,38 @@ function AplicacionesTipos({ onVolver }) {
     limpiarMensajes();
   };
 
+  const alternarAplicacion = (idAplicacion) => {
+    setAplicacionExpandida((prev) =>
+      prev === idAplicacion ? null : idAplicacion
+    );
+  };
+
+  const agregarNuevoServicioAplicacion = () => {
+    setFormAplicacion((prev) => ({
+      ...prev,
+      nuevosServicios: [...prev.nuevosServicios, ''],
+    }));
+  };
+
+  const cambiarNuevoServicioAplicacion = (index, valor) => {
+    setFormAplicacion((prev) => ({
+      ...prev,
+      nuevosServicios: prev.nuevosServicios.map((servicio, posicion) =>
+        posicion === index ? valor : servicio
+      ),
+    }));
+  };
+
+  const eliminarNuevoServicioAplicacion = (index) => {
+    setFormAplicacion((prev) => ({
+      ...prev,
+      nuevosServicios:
+        prev.nuevosServicios.length > 1
+          ? prev.nuevosServicios.filter((_, posicion) => posicion !== index)
+          : [''],
+    }));
+  };
+
   const guardarAplicacion = async (evento) => {
     evento.preventDefault();
 
@@ -163,12 +223,55 @@ function AplicacionesTipos({ onVolver }) {
       return;
     }
 
+    const nuevosServiciosLimpios = formAplicacion.nuevosServicios
+      .map((servicio) => servicio.trim())
+      .filter(Boolean);
+
+    if (!editandoAplicacion && nuevosServiciosLimpios.length === 0) {
+      setMensajeError('Agrega al menos un servicio para crear la aplicacion.');
+      subirAlInicio();
+      return;
+    }
+
     if (aplicacionSinCambios) {
       setFormAplicacion(FORM_INICIAL);
       setEditandoAplicacion(null);
+      setMostrarNuevosServicios(false);
       setMensajeExito('');
       setMensajeError('');
       return;
+    }
+
+    if (nuevosServiciosLimpios.length > 0) {
+      const serviciosDuplicados = nuevosServiciosLimpios.some(
+        (servicio, index) =>
+          nuevosServiciosLimpios.findIndex(
+            (item) =>
+              normalizarParaComparar(item) === normalizarParaComparar(servicio)
+          ) !== index
+      );
+
+      if (serviciosDuplicados) {
+        setMensajeError('No puedes agregar servicios duplicados.');
+        subirAlInicio();
+        return;
+      }
+
+      if (editandoAplicacion) {
+        const servicioYaExiste = nuevosServiciosLimpios.some((servicio) =>
+          (editandoAplicacion.servicios || []).some(
+            (existente) =>
+              normalizarParaComparar(existente.nombreServicio) ===
+              normalizarParaComparar(servicio)
+          )
+        );
+
+        if (servicioYaExiste) {
+          setMensajeError('Ese servicio ya existe para la aplicacion.');
+          subirAlInicio();
+          return;
+        }
+      }
     }
 
     try {
@@ -182,20 +285,99 @@ function AplicacionesTipos({ onVolver }) {
         );
 
         setMensajeExito('Aplicación actualizada correctamente.');
+        for (const nuevoServicio of nuevosServiciosLimpios) {
+          await configuracionServicio.crearServicio(
+            nuevoServicio,
+            editandoAplicacion.idAplicacion
+          );
+        }
+
+        setAplicacionExpandida(editandoAplicacion.idAplicacion);
+        setMensajeExito(
+          nuevosServiciosLimpios.length > 0
+            ? 'Aplicacion y servicios actualizados correctamente.'
+            : 'Aplicacion actualizada correctamente.'
+        );
         subirAlInicio();
       } else {
-        await configuracionServicio.crearAplicacion(nombre);
+        const nuevaAplicacion = await configuracionServicio.crearAplicacion(nombre);
+
+        for (const nuevoServicio of nuevosServiciosLimpios) {
+          await configuracionServicio.crearServicio(
+            nuevoServicio,
+            nuevaAplicacion.idAplicacion
+          );
+        }
+
+        setAplicacionExpandida(nuevaAplicacion.idAplicacion);
         setMensajeExito('Aplicación creada correctamente.');
         subirAlInicio();
       }
 
       setFormAplicacion(FORM_INICIAL);
       setEditandoAplicacion(null);
+      setMostrarNuevosServicios(false);
       setEliminandoAplicacion(null);
 
       await cargarDatos();
     } catch (error) {
       setMensajeError(error.message || 'No fue posible guardar la aplicación.');
+      subirAlInicio();
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const guardarServicio = async (evento) => {
+    evento.preventDefault();
+
+    const nombre = formServicio.nombre.trim();
+
+    if (!nombre || !formServicio.aplicacionId) {
+      setMensajeError('Completa el nombre del servicio y selecciona una aplicacion.');
+      subirAlInicio();
+      return;
+    }
+
+    if (servicioSinCambios) {
+      setFormServicio(FORM_SERVICIO_INICIAL);
+      setEditandoServicio(null);
+      setMensajeExito('');
+      setMensajeError('');
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      limpiarMensajes();
+
+      if (editandoServicio) {
+        await configuracionServicio.actualizarServicio(
+          editandoServicio.idServicio,
+          nombre,
+          formServicio.aplicacionId
+        );
+
+        setMensajeExito('Servicio actualizado correctamente.');
+        subirAlInicio();
+      } else {
+        await configuracionServicio.crearServicio(
+          nombre,
+          formServicio.aplicacionId
+        );
+
+        setMensajeExito('Servicio creado correctamente.');
+        setAplicacionExpandida(Number(formServicio.aplicacionId));
+        subirAlInicio();
+      }
+
+      setFormServicio(FORM_SERVICIO_INICIAL);
+      setEditandoServicio(null);
+      setEliminandoServicio(null);
+
+      await cargarDatos();
+    } catch (error) {
+      setMensajeError(error.message || 'No fue posible guardar el servicio.');
       subirAlInicio();
     } finally {
       setGuardando(false);
@@ -258,12 +440,36 @@ function AplicacionesTipos({ onVolver }) {
     limpiarMensajes();
 
     setEditandoAplicacion(app);
+    setEditandoServicio(null);
     setEditandoTipoFalla(null);
     setEliminandoAplicacion(null);
+    setEliminandoServicio(null);
     setEliminandoTipoFalla(null);
+    setMostrarNuevosServicios(false);
 
     setFormAplicacion({
       nombre: app.nombreAplicacion,
+      nuevosServicios: [''],
+    });
+  };
+
+  const prepararEditarServicio = (servicio, app) => {
+    limpiarMensajes();
+
+    setEditandoServicio({
+      ...servicio,
+      aplicacionId: app.idAplicacion,
+      nombreAplicacion: app.nombreAplicacion,
+    });
+    setEditandoAplicacion(null);
+    setEditandoTipoFalla(null);
+    setEliminandoAplicacion(null);
+    setEliminandoServicio(null);
+    setEliminandoTipoFalla(null);
+
+    setFormServicio({
+      nombre: servicio.nombreServicio,
+      aplicacionId: String(app.idAplicacion),
     });
   };
 
@@ -272,7 +478,9 @@ function AplicacionesTipos({ onVolver }) {
 
     setEditandoTipoFalla(tipo);
     setEditandoAplicacion(null);
+    setEditandoServicio(null);
     setEliminandoAplicacion(null);
+    setEliminandoServicio(null);
     setEliminandoTipoFalla(null);
 
     setFormTipoFalla({
@@ -284,11 +492,30 @@ function AplicacionesTipos({ onVolver }) {
     limpiarMensajes();
 
     setEliminandoAplicacion(app);
+    setEliminandoServicio(null);
     setEliminandoTipoFalla(null);
     setEditandoAplicacion(null);
+    setEditandoServicio(null);
     setEditandoTipoFalla(null);
 
     setFormAplicacion(FORM_INICIAL);
+  };
+
+  const prepararEliminarServicio = (servicio, app) => {
+    limpiarMensajes();
+
+    setEliminandoServicio({
+      ...servicio,
+      aplicacionId: app.idAplicacion,
+      nombreAplicacion: app.nombreAplicacion,
+    });
+    setEliminandoAplicacion(null);
+    setEliminandoTipoFalla(null);
+    setEditandoAplicacion(null);
+    setEditandoServicio(null);
+    setEditandoTipoFalla(null);
+
+    setFormServicio(FORM_SERVICIO_INICIAL);
   };
 
   const prepararEliminarTipoFalla = (tipo) => {
@@ -296,7 +523,9 @@ function AplicacionesTipos({ onVolver }) {
 
     setEliminandoTipoFalla(tipo);
     setEliminandoAplicacion(null);
+    setEliminandoServicio(null);
     setEditandoAplicacion(null);
+    setEditandoServicio(null);
     setEditandoTipoFalla(null);
 
     setFormTipoFalla(FORM_INICIAL);
@@ -305,6 +534,13 @@ function AplicacionesTipos({ onVolver }) {
   const cancelarEdicionAplicacion = () => {
     setEditandoAplicacion(null);
     setFormAplicacion(FORM_INICIAL);
+    setMostrarNuevosServicios(false);
+    limpiarMensajes();
+  };
+
+  const cancelarEdicionServicio = () => {
+    setEditandoServicio(null);
+    setFormServicio(FORM_SERVICIO_INICIAL);
     limpiarMensajes();
   };
 
@@ -316,6 +552,11 @@ function AplicacionesTipos({ onVolver }) {
 
   const cancelarEliminarAplicacion = () => {
     setEliminandoAplicacion(null);
+    limpiarMensajes();
+  };
+
+  const cancelarEliminarServicio = () => {
+    setEliminandoServicio(null);
     limpiarMensajes();
   };
 
@@ -348,6 +589,33 @@ function AplicacionesTipos({ onVolver }) {
     }
   };
 
+  const confirmarEliminarServicio = async () => {
+    if (!eliminandoServicio) return;
+
+    try {
+      setGuardando(true);
+      limpiarMensajes();
+
+      await configuracionServicio.eliminarServicio(
+        eliminandoServicio.idServicio
+      );
+
+      const aplicacionId = eliminandoServicio.aplicacionId;
+
+      setEliminandoServicio(null);
+      setAplicacionExpandida(Number(aplicacionId));
+      await cargarDatos();
+
+      setMensajeExito('Servicio eliminado correctamente.');
+      subirAlInicio();
+    } catch (error) {
+      setMensajeError(error.message || 'No fue posible eliminar el servicio.');
+      subirAlInicio();
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   const confirmarEliminarTipoFalla = async () => {
     if (!eliminandoTipoFalla) return;
 
@@ -373,6 +641,11 @@ function AplicacionesTipos({ onVolver }) {
       setGuardando(false);
     }
   };
+
+  const opcionesAplicaciones = aplicaciones.map((app) => ({
+    valor: String(app.idAplicacion),
+    etiqueta: app.nombreAplicacion,
+  }));
 
   if (cargando) {
     return (
@@ -480,45 +753,114 @@ function AplicacionesTipos({ onVolver }) {
                 <thead>
                   <tr>
                     <th>Aplicación</th>
+                    <th>Servicios asociados</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {aplicacionesVisibles.map((app) => (
-                    <tr key={app.idAplicacion}>
-                      <td>
-                        <strong>{app.nombreAplicacion}</strong>
-                      </td>
-
-                      <td>
-                        <div className="aplicaciones-tipos__acciones">
+                    <Fragment key={app.idAplicacion}>
+                      <tr>
+                        <td>
                           <button
                             type="button"
-                            onClick={() => prepararEditarAplicacion(app)}
-                            disabled={guardando}
+                            className="aplicaciones-tipos__expandir"
+                            onClick={() => alternarAplicacion(app.idAplicacion)}
                           >
-                            Editar
+                            {aplicacionExpandida === app.idAplicacion
+                              ? '⌄'
+                              : '›'}
                           </button>
 
-                          <button
-                            type="button"
-                            className="aplicaciones-tipos__accion-eliminar"
-                            onClick={() => prepararEliminarAplicacion(app)}
-                            disabled={guardando}
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                          <strong>{app.nombreAplicacion}</strong>
+                        </td>
+
+                        <td>
+                          <span className="aplicaciones-tipos__badge">
+                            {(app.servicios || []).length} servicios
+                          </span>
+                        </td>
+
+                        <td>
+                          <div className="aplicaciones-tipos__acciones">
+                            <button
+                              type="button"
+                              onClick={() => prepararEditarAplicacion(app)}
+                              disabled={guardando}
+                            >
+                              Editar
+                            </button>
+
+                            <button
+                              type="button"
+                              className="aplicaciones-tipos__accion-eliminar"
+                              onClick={() => prepararEliminarAplicacion(app)}
+                              disabled={guardando}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {aplicacionExpandida === app.idAplicacion && (
+                        <tr className="aplicaciones-tipos__fila-expandida">
+                          <td colSpan="3">
+                            <div className="aplicaciones-tipos__servicios-expandido">
+                              {(app.servicios || []).length === 0 ? (
+                                <p className="aplicaciones-tipos__texto-simple">
+                                  Esta aplicacion no tiene servicios asociados.
+                                </p>
+                              ) : (
+                                <div className="aplicaciones-tipos__servicios-lista">
+                                  {app.servicios.map((servicio) => (
+                                    <div
+                                      key={servicio.idServicio}
+                                      className="aplicaciones-tipos__servicio-item"
+                                    >
+                                      <span className="aplicaciones-tipos__servicio-nombre">
+                                        {servicio.nombreServicio}
+                                      </span>
+
+                                      <div className="aplicaciones-tipos__acciones">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            prepararEditarServicio(servicio, app)
+                                          }
+                                          disabled={guardando}
+                                        >
+                                          Editar
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          className="aplicaciones-tipos__accion-eliminar"
+                                          onClick={() =>
+                                            prepararEliminarServicio(servicio, app)
+                                          }
+                                          disabled={guardando}
+                                        >
+                                          Eliminar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   ))}
 
                   {aplicacionesFiltradas.length === 0 && (
                     <tr>
-                      <td colSpan="2">
+                      <td colSpan="3">
                         <p className="aplicaciones-tipos__sin-datos">
-                          No se encontraron aplicaciones.
+                          No se encontraron aplicaciones ni servicios.
                         </p>
                       </td>
                     </tr>
@@ -634,10 +976,16 @@ function AplicacionesTipos({ onVolver }) {
 
         <aside className="aplicaciones-tipos__sidebar">
           <form
-            onSubmit={guardarAplicacion}
+            onSubmit={editandoServicio ? guardarServicio : guardarAplicacion}
             className={`aplicaciones-tipos__form ${
-              editandoAplicacion ? 'aplicaciones-tipos__form--editando' : ''
-            } ${eliminandoAplicacion ? 'aplicaciones-tipos__form--eliminar' : ''}`}
+              editandoAplicacion || editandoServicio
+                ? 'aplicaciones-tipos__form--editando'
+                : ''
+            } ${
+              eliminandoAplicacion || eliminandoServicio
+                ? 'aplicaciones-tipos__form--eliminar'
+                : ''
+            }`}
           >
             {eliminandoAplicacion ? (
               <>
@@ -668,6 +1016,87 @@ function AplicacionesTipos({ onVolver }) {
                   </button>
                 </div>
               </>
+            ) : eliminandoServicio ? (
+              <>
+                <h2>Eliminar servicio</h2>
+
+                <p>
+                  ¿Estás seguro de eliminar el servicio{' '}
+                  <strong>{eliminandoServicio.nombreServicio}</strong> de{' '}
+                  <strong>{eliminandoServicio.nombreAplicacion}</strong>?
+                </p>
+
+                <div className="aplicaciones-tipos__acciones-form">
+                  <button
+                    type="button"
+                    className="aplicaciones-tipos__boton-eliminar"
+                    onClick={confirmarEliminarServicio}
+                    disabled={guardando}
+                  >
+                    {guardando ? 'Eliminando...' : 'Eliminar'}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="aplicaciones-tipos__boton-secundario"
+                    onClick={cancelarEliminarServicio}
+                    disabled={guardando}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            ) : editandoServicio ? (
+              <>
+                <h2>Editar servicio</h2>
+
+                <p>
+                  Actualiza el nombre del servicio seleccionado.
+                </p>
+
+                <label>Aplicacion asociada</label>
+
+                <div className="aplicaciones-tipos__campo-solo-lectura">
+                  {editandoServicio.nombreAplicacion ||
+                    'Sin aplicacion asociada'}
+                </div>
+
+                <label htmlFor="nombreServicioPrincipal">
+                  Nombre del servicio
+                </label>
+
+                <input
+                  id="nombreServicioPrincipal"
+                  type="text"
+                  value={formServicio.nombre}
+                  placeholder="Ej: Portal transaccional"
+                  onChange={(evento) =>
+                    setFormServicio((prev) => ({
+                      ...prev,
+                      nombre: evento.target.value,
+                    }))
+                  }
+                />
+
+                <div className="aplicaciones-tipos__acciones-form">
+                  <button type="submit" disabled={guardando}>
+                    {guardando
+                      ? 'Guardando...'
+                      : servicioSinCambios
+                        ? 'Guardar sin cambios'
+                        : 'Guardar cambios'}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="aplicaciones-tipos__boton-secundario"
+                    onClick={cancelarEdicionServicio}
+                    disabled={guardando}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
             ) : (
               <>
                 <h2>
@@ -691,11 +1120,125 @@ function AplicacionesTipos({ onVolver }) {
                   value={formAplicacion.nombre}
                   placeholder="Ej: Poliedro"
                   onChange={(evento) =>
-                    setFormAplicacion({
+                    setFormAplicacion((prev) => ({
+                      ...prev,
                       nombre: evento.target.value,
-                    })
+                    }))
                   }
                 />
+
+                {!editandoAplicacion && (
+                  <div className="aplicaciones-tipos__editar-servicios">
+                    <div className="aplicaciones-tipos__servicios-header">
+                      <label>Servicios asociados</label>
+
+                      <button
+                        type="button"
+                        className="aplicaciones-tipos__boton-agregar"
+                        onClick={agregarNuevoServicioAplicacion}
+                        disabled={guardando}
+                      >
+                        + Agregar servicio
+                      </button>
+                    </div>
+
+                    {formAplicacion.nuevosServicios.map((servicio, index) => (
+                      <div
+                        key={index}
+                        className="aplicaciones-tipos__servicio-campo"
+                      >
+                        <input
+                          type="text"
+                          value={servicio}
+                          placeholder={`Ej: Servicio ${index + 1}`}
+                          onChange={(evento) =>
+                            cambiarNuevoServicioAplicacion(
+                              index,
+                              evento.target.value
+                            )
+                          }
+                        />
+
+                        <button
+                          type="button"
+                          className="aplicaciones-tipos__boton-quitar"
+                          onClick={() =>
+                            eliminarNuevoServicioAplicacion(index)
+                          }
+                          disabled={guardando}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {editandoAplicacion && (
+                  <>
+                    <div className="aplicaciones-tipos__servicios-header">
+                      <button
+                        type="button"
+                        className="aplicaciones-tipos__boton-agregar"
+                        onClick={() =>
+                          setMostrarNuevosServicios((valorActual) => !valorActual)
+                        }
+                        disabled={guardando}
+                      >
+                        {mostrarNuevosServicios
+                          ? 'Ocultar servicios'
+                          : '+ Agregar servicio'}
+                      </button>
+                    </div>
+
+                    {mostrarNuevosServicios && (
+                      <div className="aplicaciones-tipos__editar-servicios">
+                        <div className="aplicaciones-tipos__servicios-header">
+                          <label>Nuevos servicios</label>
+
+                          <button
+                            type="button"
+                            className="aplicaciones-tipos__boton-agregar"
+                            onClick={agregarNuevoServicioAplicacion}
+                            disabled={guardando}
+                          >
+                            + Agregar otro
+                          </button>
+                        </div>
+
+                        {formAplicacion.nuevosServicios.map((servicio, index) => (
+                          <div
+                            key={index}
+                            className="aplicaciones-tipos__servicio-campo"
+                          >
+                            <input
+                              type="text"
+                              value={servicio}
+                              placeholder={`Nuevo servicio ${index + 1}`}
+                              onChange={(evento) =>
+                                cambiarNuevoServicioAplicacion(
+                                  index,
+                                  evento.target.value
+                                )
+                              }
+                            />
+
+                            <button
+                              type="button"
+                              className="aplicaciones-tipos__boton-quitar"
+                              onClick={() =>
+                                eliminarNuevoServicioAplicacion(index)
+                              }
+                              disabled={guardando}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
 
                 <div className="aplicaciones-tipos__acciones-form">
                   <button
@@ -737,6 +1280,43 @@ function AplicacionesTipos({ onVolver }) {
               </>
             )}
           </form>
+
+          {false && eliminandoServicio && (
+            <form
+              onSubmit={guardarServicio}
+              className="aplicaciones-tipos__form aplicaciones-tipos__form--eliminar"
+            >
+              <>
+                <h2>Eliminar servicio</h2>
+
+                <p>
+                  ¿Estás seguro de eliminar el servicio{' '}
+                  <strong>{eliminandoServicio.nombreServicio}</strong> de{' '}
+                  <strong>{eliminandoServicio.nombreAplicacion}</strong>?
+                </p>
+
+                <div className="aplicaciones-tipos__acciones-form">
+                  <button
+                    type="button"
+                    className="aplicaciones-tipos__boton-eliminar"
+                    onClick={confirmarEliminarServicio}
+                    disabled={guardando}
+                  >
+                    {guardando ? 'Eliminando...' : 'Eliminar'}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="aplicaciones-tipos__boton-secundario"
+                    onClick={cancelarEliminarServicio}
+                    disabled={guardando}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            </form>
+          )}
 
           <form
             onSubmit={guardarTipoFalla}

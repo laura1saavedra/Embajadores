@@ -47,6 +47,10 @@
   background-color: #fff8f8;
 }
 
+.lista-incidentes__tabla td.lista-incidentes__celda-numero {
+  text-align: center;
+}
+
 .lista-incidentes__enlace {
   display: inline-flex;
   align-items: center;

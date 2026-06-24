@@ -7,13 +7,26 @@
 
 import apiClient from './api.js';
 import config from '../config/config.js';
-import { guardarDiasActivosMasivos } from './masivoServicio.js';
 
 // ── Normalizadores ─────────────────────────────────────────────
 
 const normalizarAplicacion = (app) => ({
   idAplicacion: app.id_aplicacion,
   nombreAplicacion: app.nombre_aplicacion,
+  servicios: Array.isArray(app.servicios)
+    ? app.servicios.map((servicio) => ({
+        idServicio: servicio.id_servicio,
+        nombreServicio: servicio.nombre_servicio,
+        aplicacionId: servicio.aplicacion_id,
+      }))
+    : [],
+});
+
+const normalizarServicio = (servicio) => ({
+  idServicio: servicio.id_servicio,
+  nombreServicio: servicio.nombre_servicio,
+  aplicacionId: servicio.aplicacion_id,
+  nombreAplicacion: servicio.nombre_aplicacion ?? '',
 });
 
 const normalizarTipoFalla = (tipo) => ({
@@ -79,48 +92,6 @@ const normalizarUsuario = (usuario) => ({
 // ── Servicio ───────────────────────────────────────────────────
 
 class ConfiguracionServicio {
-  async obtenerDiasActivosMasivos() {
-    const { data } = await apiClient.get(
-      config.endpoints.configuracionDiasActivosMasivos()
-    );
-
-    const diasActivos = guardarDiasActivosMasivos(data?.dias_activos);
-
-    return {
-      diasActivos,
-      fechaActualizacion: data?.fecha_actualizacion || null,
-    };
-  }
-
-  async guardarDiasActivosMasivos(diasActivos) {
-    const { data } = await apiClient.put(
-      config.endpoints.configuracionDiasActivosMasivos(),
-      {
-        dias_activos: Number(diasActivos),
-      }
-    );
-
-    const diasGuardados = guardarDiasActivosMasivos(data?.dias_activos);
-
-    return {
-      diasActivos: diasGuardados,
-      fechaActualizacion: data?.fecha_actualizacion || new Date().toISOString(),
-    };
-  }
-
-  async eliminarDiasActivosMasivos() {
-    const { data } = await apiClient.delete(
-      config.endpoints.configuracionDiasActivosMasivos()
-    );
-
-    const diasActivos = guardarDiasActivosMasivos(data?.dias_activos);
-
-    return {
-      diasActivos,
-      fechaActualizacion: data?.fecha_actualizacion || null,
-    };
-  }
-
   // ─────────────────────────────────────────────────────────────
   // Aplicaciones
   // ─────────────────────────────────────────────────────────────
@@ -152,6 +123,46 @@ class ConfiguracionServicio {
   async eliminarAplicacion(idAplicacion) {
     const { data } = await apiClient.delete(
       `${config.endpoints.aplicaciones()}/${idAplicacion}`
+    );
+
+    return data;
+  }
+
+  // Servicios
+
+  async listarServicios(aplicacionId = '') {
+    const url = aplicacionId
+      ? `${config.endpoints.servicios()}?aplicacion_id=${aplicacionId}`
+      : config.endpoints.servicios();
+
+    const { data } = await apiClient.get(url);
+    return (data || []).map(normalizarServicio);
+  }
+
+  async crearServicio(nombreServicio, aplicacionId) {
+    const { data } = await apiClient.post(config.endpoints.servicios(), {
+      nombre_servicio: nombreServicio,
+      aplicacion_id: Number(aplicacionId),
+    });
+
+    return normalizarServicio(data);
+  }
+
+  async actualizarServicio(idServicio, nombreServicio, aplicacionId) {
+    const { data } = await apiClient.put(
+      `${config.endpoints.servicios()}/${idServicio}`,
+      {
+        nombre_servicio: nombreServicio,
+        aplicacion_id: Number(aplicacionId),
+      }
+    );
+
+    return normalizarServicio(data);
+  }
+
+  async eliminarServicio(idServicio) {
+    const { data } = await apiClient.delete(
+      `${config.endpoints.servicios()}/${idServicio}`
     );
 
     return data;

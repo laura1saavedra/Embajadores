@@ -16,12 +16,44 @@ const FORM_INICIAL = {
   ciudadId: '',
   cavId: '',
   usuariosAfectados: '',
-  usuariosTotalidad: '',
+  usuariosOperacion: '',
+};
+
+const CAMPOS_USUARIOS_NUMERICOS = new Set([
+  'usuariosAfectados',
+  'usuariosOperacion',
+]);
+
+const sanitizarEntero = (valor) => valor.replace(/\D/g, '');
+
+const bloquearCaracterNoNumerico = (evento) => {
+  if (evento.ctrlKey || evento.metaKey || evento.altKey) return;
+
+  const teclasPermitidas = [
+    'Backspace',
+    'Delete',
+    'Tab',
+    'Enter',
+    'Escape',
+    'ArrowLeft',
+    'ArrowRight',
+    'ArrowUp',
+    'ArrowDown',
+    'Home',
+    'End',
+  ];
+
+  if (teclasPermitidas.includes(evento.key)) return;
+
+  if (!/^\d$/.test(evento.key)) {
+    evento.preventDefault();
+  }
 };
 
 const crearFila = (datos = {}) => ({
   id: datos.id || Date.now() + Math.random(),
   aplicacionId: datos.aplicacionId || '',
+  servicioId: datos.servicioId || '',
   tipoFallaId: datos.tipoFallaId || '',
 });
 
@@ -40,6 +72,7 @@ function DetalleIncidente() {
   const [ciudades, setCiudades] = useState([]);
   const [cavs, setCavs] = useState([]);
   const [aplicaciones, setAplicaciones] = useState([]);
+  const [servicios, setServicios] = useState([]);
   const [tiposFalla, setTiposFalla] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [cerrando, setCerrando] = useState(false);
@@ -69,9 +102,9 @@ function DetalleIncidente() {
         datos.usuariosAfectados !== null && datos.usuariosAfectados !== undefined
           ? String(datos.usuariosAfectados)
           : '',
-      usuariosTotalidad:
-        datos.usuariosTotalidad !== null && datos.usuariosTotalidad !== undefined
-          ? String(datos.usuariosTotalidad)
+      usuariosOperacion:
+        datos.usuariosOperacion !== null && datos.usuariosOperacion !== undefined
+          ? String(datos.usuariosOperacion)
           : '',
     });
 
@@ -81,6 +114,7 @@ function DetalleIncidente() {
         crearFila({
           id: item.idAplicacionesAfectados || undefined,
           aplicacionId: item.aplicacionId,
+          servicioId: item.servicioId,
           tipoFallaId: item.tipoFallaId,
         })
       );
@@ -95,18 +129,21 @@ function DetalleIncidente() {
   useEffect(() => {
     const cargarCatalogos = async () => {
       try {
-        const [ciudadesResp, aplicacionesResp, tiposResp] = await Promise.all([
+        const [ciudadesResp, aplicacionesResp, serviciosResp, tiposResp] = await Promise.all([
           incidenteServicio.obtenerCiudades(),
           incidenteServicio.obtenerAplicaciones(),
+          incidenteServicio.obtenerServicios(),
           incidenteServicio.obtenerTiposFalla(),
         ]);
 
         setCiudades(ciudadesResp);
         setAplicaciones(aplicacionesResp);
+        setServicios(serviciosResp);
         setTiposFalla(tiposResp);
       } catch {
         setCiudades([]);
         setAplicaciones([]);
+        setServicios([]);
         setTiposFalla([]);
       }
     };
@@ -195,12 +232,23 @@ function DetalleIncidente() {
     etiqueta: t.nombre,
   }));
 
+  const obtenerOpcionesServicios = (aplicacionId) =>
+    servicios
+      .filter((servicio) => servicio.aplicacionId === aplicacionId)
+      .map((servicio) => ({
+        valor: servicio.id,
+        etiqueta: servicio.nombre,
+      }));
+
   const manejarCambio = (evento) => {
     const { name, value } = evento.target;
+    const valor = CAMPOS_USUARIOS_NUMERICOS.has(name)
+      ? sanitizarEntero(value)
+      : value;
 
     setFormulario((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: valor,
       ...(name === 'ciudadId' ? { cavId: '' } : {}),
     }));
     setMensajeError('');
@@ -209,7 +257,13 @@ function DetalleIncidente() {
   const manejarCambioFila = (filaId, campo, valor) => {
     setFilasAplicaciones((prev) =>
       prev.map((fila) =>
-        fila.id === filaId ? { ...fila, [campo]: valor } : fila
+        fila.id === filaId
+          ? {
+              ...fila,
+              [campo]: valor,
+              ...(campo === 'aplicacionId' ? { servicioId: '' } : {}),
+            }
+          : fila
       )
     );
     setMensajeError('');
@@ -241,35 +295,40 @@ function DetalleIncidente() {
       return 'El campo usuarios afectados es obligatorio.';
     }
 
-    const usuariosAfectados = Number(formulario.usuariosAfectados);
-    const usuariosTotalidad =
-      formulario.usuariosTotalidad !== ''
-        ? Number(formulario.usuariosTotalidad)
-        : null;
-
-    if (usuariosAfectados < 0) {
-      return 'Los usuarios afectados no pueden ser negativos.';
+    if (formulario.usuariosOperacion === '') {
+      return 'El campo usuarios en operacion es obligatorio.';
     }
 
-    if (usuariosTotalidad !== null && usuariosAfectados > usuariosTotalidad) {
-      return 'Los usuarios afectados no pueden ser mayores que los usuarios totales.';
+    const usuariosAfectados = Number(formulario.usuariosAfectados);
+    const usuariosOperacion = Number(formulario.usuariosOperacion);
+
+    if (usuariosAfectados <= 0) {
+      return 'Los usuarios afectados deben ser mayores que cero.';
+    }
+
+    if (usuariosOperacion <= 0) {
+      return 'Los usuarios en operacion deben ser mayores que cero.';
+    }
+
+    if (usuariosAfectados > usuariosOperacion) {
+      return 'Los usuarios afectados no pueden ser mayores que los usuarios en operacion.';
     }
 
     const filasValidas = filasAplicaciones.filter(
-      (fila) => fila.aplicacionId && fila.tipoFallaId
+      (fila) => fila.aplicacionId && fila.servicioId && fila.tipoFallaId
     );
 
     if (filasValidas.length === 0) {
-      return 'Selecciona al menos una aplicacion y un tipo de falla.';
+      return 'Selecciona al menos una aplicacion, un servicio y un tipo de falla.';
     }
 
     const combinaciones = new Set();
 
     for (const fila of filasValidas) {
-      const clave = `${fila.aplicacionId}-${fila.tipoFallaId}`;
+      const clave = `${fila.aplicacionId}-${fila.servicioId}-${fila.tipoFallaId}`;
 
       if (combinaciones.has(clave)) {
-        return 'No se puede registrar la misma combinacion de aplicacion y tipo de falla mas de una vez.';
+        return 'No se puede registrar la misma combinacion de aplicacion, servicio y tipo de falla mas de una vez.';
       }
 
       combinaciones.add(clave);
@@ -303,7 +362,7 @@ function DetalleIncidente() {
       await incidenteServicio.editarIncidente(idIncidente, {
         ...formulario,
         filasAplicaciones: filasAplicaciones.filter(
-          (fila) => fila.aplicacionId && fila.tipoFallaId
+          (fila) => fila.aplicacionId && fila.servicioId && fila.tipoFallaId
         ),
       });
 
@@ -445,9 +504,9 @@ function DetalleIncidente() {
 
             <div>
               <strong>
-                {incidente.usuariosTotalidad !== null &&
-                incidente.usuariosTotalidad !== undefined
-                  ? `${incidente.usuariosAfectados ?? 0} / ${incidente.usuariosTotalidad}`
+                {incidente.usuariosOperacion !== null &&
+                incidente.usuariosOperacion !== undefined
+                  ? `${incidente.usuariosAfectados ?? 0} / ${incidente.usuariosOperacion}`
                   : incidente.usuariosAfectados ?? 0}
               </strong>
             </div>
@@ -600,23 +659,27 @@ function DetalleIncidente() {
                 <input
                   id="usuariosAfectados"
                   name="usuariosAfectados"
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={formulario.usuariosAfectados}
                   onChange={manejarCambio}
+                  onKeyDown={bloquearCaracterNoNumerico}
                   disabled={guardando}
                 />
               </div>
 
               <div className="detalle-incidente__campo-edicion">
-                <label htmlFor="usuariosTotalidad">Usuarios totales</label>
+                <label htmlFor="usuariosOperacion">Usuarios en operacion</label>
                 <input
-                  id="usuariosTotalidad"
-                  name="usuariosTotalidad"
-                  type="number"
-                  min="0"
-                  value={formulario.usuariosTotalidad}
+                  id="usuariosOperacion"
+                  name="usuariosOperacion"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={formulario.usuariosOperacion}
                   onChange={manejarCambio}
+                  onKeyDown={bloquearCaracterNoNumerico}
                   disabled={guardando}
                 />
               </div>
@@ -624,7 +687,7 @@ function DetalleIncidente() {
 
             <div className="detalle-incidente__edicion-apps">
               <div className="detalle-incidente__edicion-apps-header">
-                <h3>Aplicaciones afectadas y tipo de falla</h3>
+                <h3>Aplicaciones afectadas, servicio y tipo de falla</h3>
                 <button
                   type="button"
                   className="detalle-incidente__boton detalle-incidente__boton--secundario"
@@ -638,6 +701,7 @@ function DetalleIncidente() {
               <div className="detalle-incidente__tabla-edicion-head">
                 <span>#</span>
                 <span>Aplicacion</span>
+                <span>Servicio</span>
                 <span>Tipo de falla</span>
                 <span />
               </div>
@@ -664,6 +728,27 @@ function DetalleIncidente() {
                       placeholderBusqueda="Buscar aplicacion..."
                       sinResultadosTexto="Sin aplicaciones"
                       disabled={guardando}
+                    />
+
+                    <SelectBuscable
+                      id={`servicio-${fila.id}`}
+                      valor={fila.servicioId}
+                      opciones={obtenerOpcionesServicios(fila.aplicacionId)}
+                      onChange={(evento) =>
+                        manejarCambioFila(
+                          fila.id,
+                          'servicioId',
+                          evento.target.value
+                        )
+                      }
+                      placeholder={
+                        fila.aplicacionId
+                          ? 'Seleccione servicio'
+                          : 'Primero seleccione aplicacion'
+                      }
+                      placeholderBusqueda="Buscar servicio..."
+                      sinResultadosTexto="Sin servicios"
+                      disabled={guardando || !fila.aplicacionId}
                     />
 
                     <SelectBuscable
@@ -721,7 +806,7 @@ function DetalleIncidente() {
 
         <section className="detalle-incidente__bloque detalle-incidente__bloque--ancho-completo">
           <h2 className="detalle-incidente__subtitulo">
-            Aplicaciones y tipos de falla afectados
+            Aplicaciones, servicios y tipos de falla afectados
           </h2>
 
           {aplicacionesAfectadas.length > 0 ? (
@@ -730,6 +815,7 @@ function DetalleIncidente() {
                 <thead>
                   <tr>
                     <th>Aplicacion</th>
+                    <th>Servicio</th>
                     <th>Tipo de falla</th>
                   </tr>
                 </thead>
@@ -743,6 +829,7 @@ function DetalleIncidente() {
                       }
                     >
                       <td>{item.aplicacionNombre || 'Sin aplicacion'}</td>
+                      <td>{item.servicioNombre || 'Sin servicio'}</td>
                       <td>{item.tipoFallaNombre || 'Sin tipo de falla'}</td>
                     </tr>
                   ))}
@@ -761,3 +848,4 @@ function DetalleIncidente() {
 }
 
 export default DetalleIncidente;
+

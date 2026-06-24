@@ -3,31 +3,129 @@ import { Link } from 'react-router-dom';
 
 import LayoutPrincipal from '../../componentes/layout/LayoutPrincipal/LayoutPrincipal';
 import ContenedorPagina from '../../componentes/layout/ContenedorPagina/ContenedorPagina';
+import EtiquetaRol from '../../componentes/layout/EtiquetaRol/EtiquetaRol';
 import SelectBuscable from '../../componentes/incidentes/SelectBuscable/SelectBuscable';
 import EstadoIncidente from '../../componentes/incidentes/EstadoIncidente/EstadoIncidente';
 
 import incidenteServicio from '../../services/incidenteServicio';
 import masivoServicio from '../../services/masivoServicio';
 
+import '../../componentes/incidentes/FiltrosIncidentes/FiltrosIncidentes.css';
 import './Masivos.css';
 
-const MASIVOS_VISIBLES_INICIALES = 8;
+const MASIVOS_VISIBLES_INICIALES = 7;
 
 const FORMATO_FECHA = new Intl.DateTimeFormat('es-CO', {
   dateStyle: 'short',
   timeStyle: 'short',
 });
 
-const FILTROS_INICIALES = {
-  aplicacionId: '',
-  tipoFallaId: '',
+const crearFiltrosIniciales = () => {
+  const fechaActual = new Date();
+
+  return {
+    fechaAnio: String(fechaActual.getFullYear()),
+    fechaMes: String(fechaActual.getMonth() + 1).padStart(2, '0'),
+    fechaDia: '',
+    estado: '',
+    aplicacionId: '',
+    tipoFallaId: '',
+  };
+};
+
+const ESTADOS = [
+  { valor: '', etiqueta: 'Todos' },
+  { valor: 'abierto', etiqueta: 'Abierto' },
+  { valor: 'cerrado', etiqueta: 'Cerrado' },
+];
+
+const MESES = [
+  { valor: '', etiqueta: 'Todos' },
+  { valor: '01', etiqueta: 'Enero' },
+  { valor: '02', etiqueta: 'Febrero' },
+  { valor: '03', etiqueta: 'Marzo' },
+  { valor: '04', etiqueta: 'Abril' },
+  { valor: '05', etiqueta: 'Mayo' },
+  { valor: '06', etiqueta: 'Junio' },
+  { valor: '07', etiqueta: 'Julio' },
+  { valor: '08', etiqueta: 'Agosto' },
+  { valor: '09', etiqueta: 'Septiembre' },
+  { valor: '10', etiqueta: 'Octubre' },
+  { valor: '11', etiqueta: 'Noviembre' },
+  { valor: '12', etiqueta: 'Diciembre' },
+];
+
+const DIAS = [
+  { valor: '', etiqueta: 'Todos' },
+  ...Array.from({ length: 31 }, (_, index) => {
+    const valor = String(index + 1).padStart(2, '0');
+    return { valor, etiqueta: valor };
+  }),
+];
+
+const obtenerAnios = () => {
+  const anioActual = new Date().getFullYear();
+
+  return [
+    { valor: '', etiqueta: 'Todos' },
+    ...Array.from({ length: 6 }, (_, index) => {
+      const anio = String(anioActual - index);
+      return { valor: anio, etiqueta: anio };
+    }),
+  ];
+};
+
+const filtrarMasivos = (lista = [], filtros = {}) => {
+  return lista.filter((masivo) => {
+    if (filtros.estado && masivo.estado !== filtros.estado) {
+      return false;
+    }
+
+    if (
+      filtros.aplicacionId &&
+      String(masivo.aplicacionId) !== String(filtros.aplicacionId)
+    ) {
+      return false;
+    }
+
+    if (
+      filtros.tipoFallaId &&
+      String(masivo.tipoFallaId) !== String(filtros.tipoFallaId)
+    ) {
+      return false;
+    }
+
+    if (!filtros.fechaAnio && !filtros.fechaMes && !filtros.fechaDia) {
+      return true;
+    }
+
+    if (!masivo.fechaHoraGenerado) {
+      return false;
+    }
+
+    const fecha = new Date(masivo.fechaHoraGenerado);
+
+    if (Number.isNaN(fecha.getTime())) {
+      return false;
+    }
+
+    const anio = String(fecha.getFullYear());
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getDate()).padStart(2, '0');
+
+    return (
+      (!filtros.fechaAnio || filtros.fechaAnio === anio) &&
+      (!filtros.fechaMes || filtros.fechaMes === mes) &&
+      (!filtros.fechaDia || filtros.fechaDia === dia)
+    );
+  });
 };
 
 function Masivos() {
   const [masivos, setMasivos] = useState([]);
   const [aplicaciones, setAplicaciones] = useState([]);
   const [tiposFalla, setTiposFalla] = useState([]);
-  const [filtros, setFiltros] = useState(FILTROS_INICIALES);
+  const [filtros, setFiltros] = useState(crearFiltrosIniciales());
 
   const [resumen, setResumen] = useState({
     total: 0,
@@ -39,23 +137,51 @@ function Masivos() {
   const [cargandoFiltros, setCargandoFiltros] = useState(false);
   const [mensajeError, setMensajeError] = useState('');
   const [paginaActual, setPaginaActual] = useState(1);
+  const [filtrosVisibles, setFiltrosVisibles] = useState(false);
 
   const listadoRef = useRef(null);
+  const filtrosRef = useRef(crearFiltrosIniciales());
+
+  useEffect(() => {
+    filtrosRef.current = filtros;
+  }, [filtros]);
 
   useEffect(() => {
     cargarInformacionInicial();
 
     const intervalo = setInterval(() => {
-      cargarInformacionInicial();
+      actualizarMasivosEnSegundoPlano();
      }, 60000); // refresca cada 1 minuto 
      
      return () => clearInterval(intervalo);
   }, []);
 
+  const actualizarMasivosEnSegundoPlano = async () => {
+    try {
+      const filtrosActuales = filtrosRef.current;
+
+      const [masivosRespuesta, resumenRespuesta] = await Promise.all([
+        masivoServicio.listarMasivos(filtrosActuales, {
+          incluirCerrados: true,
+        }),
+        masivoServicio.obtenerResumen(),
+      ]);
+
+      setMasivos(filtrarMasivos(masivosRespuesta, filtrosActuales));
+      setResumen(resumenRespuesta);
+    } catch (error) {
+      setMensajeError(
+        error.message || 'No fue posible actualizar los incidentes masivos.'
+      );
+    }
+  };
+
   const cargarInformacionInicial = async () => {
     try {
       setCargando(true);
       setMensajeError('');
+
+      const filtrosIniciales = crearFiltrosIniciales();
 
       const [
         masivosRespuesta,
@@ -63,13 +189,16 @@ function Masivos() {
         aplicacionesRespuesta,
         tiposFallaRespuesta,
       ] = await Promise.all([
-        masivoServicio.listarMasivos(FILTROS_INICIALES),
+        masivoServicio.listarMasivos(filtrosIniciales, {
+          incluirCerrados: true,
+        }),
         masivoServicio.obtenerResumen(),
         incidenteServicio.obtenerAplicaciones(),
         incidenteServicio.obtenerTiposFalla(),
       ]);
 
-      setMasivos(masivosRespuesta);
+      setFiltros(filtrosIniciales);
+      setMasivos(filtrarMasivos(masivosRespuesta, filtrosIniciales));
       setResumen(resumenRespuesta);
       setAplicaciones(aplicacionesRespuesta);
       setTiposFalla(tiposFallaRespuesta);
@@ -97,9 +226,12 @@ function Masivos() {
       setCargandoFiltros(true);
       setMensajeError('');
 
-      const respuesta = await masivoServicio.listarMasivos(filtros);
-      setMasivos(respuesta);
+      const respuesta = await masivoServicio.listarMasivos(filtros, {
+        incluirCerrados: true,
+      });
+      setMasivos(filtrarMasivos(respuesta, filtros));
       setPaginaActual(1);
+      setFiltrosVisibles(false);
     } catch (error) {
       setMensajeError(error.message || 'No fue posible aplicar los filtros.');
     } finally {
@@ -112,11 +244,16 @@ function Masivos() {
       setCargandoFiltros(true);
       setMensajeError('');
 
-      setFiltros(FILTROS_INICIALES);
+      const filtrosIniciales = crearFiltrosIniciales();
 
-      const respuesta = await masivoServicio.listarMasivos(FILTROS_INICIALES);
-      setMasivos(respuesta);
+      setFiltros(filtrosIniciales);
+
+      const respuesta = await masivoServicio.listarMasivos(filtrosIniciales, {
+        incluirCerrados: true,
+      });
+      setMasivos(filtrarMasivos(respuesta, filtrosIniciales));
       setPaginaActual(1);
+      setFiltrosVisibles(false);
     } catch (error) {
       setMensajeError(error.message || 'No fue posible limpiar los filtros.');
     } finally {
@@ -138,19 +275,6 @@ function Masivos() {
     return FORMATO_FECHA.format(new Date(fecha));
   };
 
-  const formatearUsuarios = (usuariosAfectados, usuariosTotales) => {
-    const tieneUsuariosTotales =
-      usuariosTotales !== null &&
-      usuariosTotales !== undefined &&
-      usuariosTotales !== '';
-
-    if (!tieneUsuariosTotales) {
-      return usuariosAfectados ?? 0;
-    }
-
-    return `${usuariosAfectados ?? 0} / ${usuariosTotales}`;
-  };
-
   const opcionesAplicaciones = useMemo(() => {
     return [
       { valor: '', etiqueta: 'Todas' },
@@ -170,6 +294,16 @@ function Masivos() {
       })),
     ];
   }, [tiposFalla]);
+
+  const anios = useMemo(() => obtenerAnios(), []);
+
+  const cantidadFiltrosActivos = useMemo(() => {
+    return Object.values(filtros).filter((valor) => valor !== '').length;
+  }, [filtros]);
+
+  const alternarFiltros = () => {
+    setFiltrosVisibles((prev) => !prev);
+  };
 
   const totalPaginas = Math.ceil(
     masivos.length / MASIVOS_VISIBLES_INICIALES
@@ -207,15 +341,15 @@ function Masivos() {
       <ContenedorPagina>
         <section className="masivos__hero">
           <div className="masivos__hero-texto">
-            <span className="masivos__hero-etiqueta">Embajador/a</span>
+            <EtiquetaRol className="masivos__hero-etiqueta" />
 
             <h1 className="masivos__hero-titulo">
               Incidentes <span>masivos</span>
             </h1>
 
             <p className="masivos__hero-descripcion">
-              Consulta los incidentes masivos generados automáticamente por
-              aplicación y tipo de falla, revisa su impacto y realiza seguimiento.
+              Consulta los incidentes masivos generados automaticamente por
+              aplicacion y tipo de falla, revisa su impacto y realiza seguimiento.
             </p>
           </div>
         </section>
@@ -226,7 +360,7 @@ function Masivos() {
           </div>
         )}
 
-        <div className="masivos__cabecera">
+        <div className="masivos__resumen-con-filtro">
           <div className="masivos__resumen">
             <div className="masivos__tarjeta-resumen masivos__tarjeta-resumen--total">
               <span>Total</span>
@@ -234,51 +368,159 @@ function Masivos() {
             </div>
           </div>
 
-          <section className="masivos__bloque masivos__bloque--filtros">
-            <div className="masivos__filtros">
-              <SelectBuscable
-                id="aplicacionId"
-                label="Aplicación"
-                opciones={opcionesAplicaciones}
-                valor={filtros.aplicacionId}
-                onChange={manejarCambioFiltro}
-                disabled={cargandoFiltros}
-                placeholder="Todas"
-                placeholderBusqueda="Buscar aplicación..."
-              />
+          <div className="masivos__mensaje-periodo">
+            Prioriza el seguimiento de los masivos con mayor impacto y valida
+            su estado antes de cerrar la gestion.
+          </div>
 
-              <SelectBuscable
-                id="tipoFallaId"
-                label="Tipo de falla"
-                opciones={opcionesTiposFalla}
-                valor={filtros.tipoFallaId}
-                onChange={manejarCambioFiltro}
-                disabled={cargandoFiltros}
-                placeholder="Todos"
-                placeholderBusqueda="Buscar tipo..."
-              />
+          <button
+            type="button"
+            className="masivos__boton-filtros"
+            onClick={alternarFiltros}
+          >
+            <span className="masivos__boton-filtros-texto">
+              Filtro de busqueda
+            </span>
 
-              <div className="masivos__acciones-filtros">
-                <button
-                  type="button"
-                  className="masivos__boton masivos__boton--secundario"
-                  onClick={limpiarFiltros}
-                  disabled={cargandoFiltros}
+            <span className="masivos__boton-filtros-lado">
+              {cantidadFiltrosActivos > 0 && (
+                <span className="masivos__boton-filtros-badge">
+                  {cantidadFiltrosActivos}
+                </span>
+              )}
+
+              <span className="masivos__boton-filtros-icono">
+                {filtrosVisibles ? '▲' : '▼'}
+              </span>
+            </span>
+          </button>
+        </div>
+
+        <div className="masivos__bloque-filtros">
+          {filtrosVisibles && (
+            <div className="masivos__panel-filtros">
+              <section className="filtros-incidentes">
+                <div className="filtros-incidentes__cabecera">
+                  <h2 className="filtros-incidentes__titulo">
+                    Filtros de busqueda
+                  </h2>
+
+                  <span className="filtros-incidentes__contador">
+                    Filtros activos: {cantidadFiltrosActivos}
+                  </span>
+                </div>
+
+                <form
+                  className="filtros-incidentes__formulario"
+                  onSubmit={(evento) => {
+                    evento.preventDefault();
+                    aplicarFiltros();
+                  }}
                 >
-                  Limpiar
-                </button>
+                  <div className="filtros-incidentes__grid">
+                    <div className="filtros-incidentes__campo">
+                      <SelectBuscable
+                        id="fechaAnio"
+                        label="Año"
+                        opciones={anios}
+                        valor={filtros.fechaAnio}
+                        onChange={manejarCambioFiltro}
+                        disabled={cargandoFiltros}
+                        placeholder="Todos"
+                        placeholderBusqueda="Buscar año..."
+                      />
+                    </div>
 
-                <button
-                  type="button"
-                  className="masivos__boton masivos__boton--principal"
-                  onClick={aplicarFiltros}
-                  disabled={cargandoFiltros}
-                >
-                  {cargandoFiltros ? 'Aplicando...' : 'Buscar'}
-                </button>
-              </div>
+                    <div className="filtros-incidentes__campo">
+                      <SelectBuscable
+                        id="fechaMes"
+                        label="Mes"
+                        opciones={MESES}
+                        valor={filtros.fechaMes}
+                        onChange={manejarCambioFiltro}
+                        disabled={cargandoFiltros}
+                        placeholder="Todos"
+                        placeholderBusqueda="Buscar mes..."
+                      />
+                    </div>
+
+                    <div className="filtros-incidentes__campo">
+                      <SelectBuscable
+                        id="fechaDia"
+                        label="Dia"
+                        opciones={DIAS}
+                        valor={filtros.fechaDia}
+                        onChange={manejarCambioFiltro}
+                        disabled={cargandoFiltros}
+                        placeholder="Todos"
+                        placeholderBusqueda="Buscar dia..."
+                      />
+                    </div>
+
+                    <div className="filtros-incidentes__campo">
+                      <SelectBuscable
+                        id="estado"
+                        label="Estado"
+                        opciones={ESTADOS}
+                        valor={filtros.estado}
+                        onChange={manejarCambioFiltro}
+                        disabled={cargandoFiltros}
+                        placeholder="Todos"
+                        placeholderBusqueda="Buscar estado..."
+                      />
+                    </div>
+
+                    <div className="filtros-incidentes__campo">
+                      <SelectBuscable
+                        id="aplicacionId"
+                        label="Aplicacion"
+                        opciones={opcionesAplicaciones}
+                        valor={filtros.aplicacionId}
+                        onChange={manejarCambioFiltro}
+                        disabled={cargandoFiltros}
+                        placeholder="Todas"
+                        placeholderBusqueda="Buscar aplicacion..."
+                      />
+                    </div>
+
+                    <div className="filtros-incidentes__campo">
+                      <SelectBuscable
+                        id="tipoFallaId"
+                        label="Tipo de falla"
+                        opciones={opcionesTiposFalla}
+                        valor={filtros.tipoFallaId}
+                        onChange={manejarCambioFiltro}
+                        disabled={cargandoFiltros}
+                        placeholder="Todos"
+                        placeholderBusqueda="Buscar tipo..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="filtros-incidentes__acciones">
+                    <button
+                      type="button"
+                      className="filtros-incidentes__boton filtros-incidentes__boton--secundario"
+                      onClick={limpiarFiltros}
+                      disabled={cargandoFiltros}
+                    >
+                      Limpiar filtros
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="filtros-incidentes__boton filtros-incidentes__boton--principal"
+                      disabled={cargandoFiltros}
+                    >
+                      {cargandoFiltros
+                        ? 'Aplicando filtros...'
+                        : 'Aplicar filtros'}
+                    </button>
+                  </div>
+                </form>
+              </section>
             </div>
-          </section>
+          )}
         </div>
 
         <section className="masivos__bloque" ref={listadoRef}>
@@ -293,27 +535,25 @@ function Masivos() {
               </span>
 
               {!cargando && totalPaginas > 1 && (
-                <div className="historial-incidentes__paginacion-superior">
+                <div className="masivos__paginacion-mini">
                   <button
                     type="button"
-                    className="historial-incidentes__boton-ver-mas historial-incidentes__boton-ver-mas--secundario"
                     onClick={irPaginaAnterior}
                     disabled={paginaActual === 1}
                   >
-                    ← Anterior
+                    ←
                   </button>
 
-                  <span className="historial-incidentes__paginacion-info">
-                    Página {paginaActual} de {totalPaginas}
+                  <span>
+                    {paginaActual}/{totalPaginas}
                   </span>
 
                   <button
                     type="button"
-                    className="historial-incidentes__boton-ver-mas"
                     onClick={irPaginaSiguiente}
                     disabled={paginaActual === totalPaginas}
                   >
-                    Siguiente →
+                    →
                   </button>
                 </div>
               )}
@@ -334,12 +574,19 @@ function Masivos() {
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Aplicación</th>
+                    <th>Aplicacion</th>
                     <th>Tipo de falla</th>
-                    <th>CAVs</th>
-                    <th>Usuarios afectados</th>
-                    <th>Estado</th>
-                    <th>Fecha generación</th>
+                    <th className="masivos__celda-centrada">
+                      CAVs afectados
+                    </th>
+                    <th className="masivos__celda-centrada">
+                      Usuarios afectados
+                    </th>
+                    <th className="masivos__celda-centrada">
+                      Usuarios en operacion
+                    </th>
+                    <th className="masivos__celda-centrada">Estado</th>
+                    <th>Fecha generacion</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -348,16 +595,18 @@ function Masivos() {
                   {masivosVisibles.map((masivo) => (
                     <tr key={masivo.idMasivo}>
                       <td>#{masivo.idMasivo}</td>
-                      <td>{masivo.aplicacionNombre || 'Sin aplicación'}</td>
+                      <td>{masivo.aplicacionNombre || 'Sin aplicacion'}</td>
                       <td>{masivo.tipoFallaNombre || 'Sin tipo'}</td>
-                      <td>{masivo.cantidadCavs}</td>
-                      <td>
-                        {formatearUsuarios(
-                          masivo.usuariosAfectados,
-                          masivo.usuariosTotales
-                        )}
+                      <td className="masivos__celda-centrada">
+                        {masivo.cantidadCavs}
                       </td>
-                      <td>
+                      <td className="masivos__celda-centrada">
+                        {masivo.usuariosAfectados ?? 0}
+                      </td>
+                      <td className="masivos__celda-centrada">
+                        {masivo.usuariosOperacion ?? 'Sin registrar'}
+                      </td>
+                      <td className="masivos__celda-centrada">
                         <EstadoIncidente estado={masivo.estado} />
                       </td>
                       <td>{formatearFecha(masivo.fechaHoraGenerado)}</td>

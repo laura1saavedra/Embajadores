@@ -329,7 +329,7 @@
 .detalle-incidente__tabla-edicion-head,
 .detalle-incidente__fila-edicion {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 44px;
+  grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 44px;
   gap: 12px;
   align-items: center;
 }

@@ -47,6 +47,7 @@ function FiltrosIncidentes({
   filtros,
   ciudades = [],
   cavsDisponibles = [],
+  aplicaciones = [],
   tiposFalla = [],
   cantidadFiltrosActivos = 0,
   cargando = false,
@@ -79,6 +80,14 @@ function FiltrosIncidentes({
     ...cavsDisponibles.map((c) => ({
       valor: c.idCav,
       etiqueta: c.nombreCav,
+    })),
+  ];
+
+  const opcionesAplicaciones = [
+    { valor: '', etiqueta: 'Todas' },
+    ...aplicaciones.map((a) => ({
+      valor: a.id,
+      etiqueta: a.nombre,
     })),
   ];
 
@@ -194,6 +203,20 @@ function FiltrosIncidentes({
                   : 'Primero seleccione ciudad'
               }
               placeholderBusqueda="Buscar CAV..."
+            />
+          </div>
+
+          {/* Aplicación */}
+          <div className="filtros-incidentes__campo">
+            <SelectBuscable
+              id="aplicacionId"
+              label="Aplicación"
+              opciones={opcionesAplicaciones}
+              valor={filtros.aplicacionId}
+              onChange={onCambioFiltro}
+              disabled={cargando}
+              placeholder="Todas"
+              placeholderBusqueda="Buscar aplicación..."
             />
           </div>
 

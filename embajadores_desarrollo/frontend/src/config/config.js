@@ -46,6 +46,7 @@ const config = {
     contactos: () => `${config.API_URL}/contactos`,
 
     aplicaciones: () => `${config.API_URL}/aplicaciones`,
+    servicios: () => `${config.API_URL}/servicios`,
 
     // Nuevo endpoint independiente de tipos de falla
     tiposFalla: () => `${config.API_URL}/tipos-falla`,
@@ -63,8 +64,6 @@ const config = {
     masivoById: (id) => `${config.API_URL}/masivos/${id}`,
     masivoCerrar: (id) => `${config.API_URL}/masivos/${id}/cerrar`,
     masivoResumen: () => `${config.API_URL}/masivos/resumen`,
-    configuracionDiasActivosMasivos: () =>
-      `${config.API_URL}/configuracion/dias-activos-masivos`,
 
     // WhatsApp grupos
     whatsapp: {

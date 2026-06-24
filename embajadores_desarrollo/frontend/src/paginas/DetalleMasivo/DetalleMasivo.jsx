@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import LayoutPrincipal from '../../componentes/layout/LayoutPrincipal/LayoutPrincipal';
 import ContenedorPagina from '../../componentes/layout/ContenedorPagina/ContenedorPagina';
@@ -19,10 +19,11 @@ const FORMATO_FECHA = new Intl.DateTimeFormat('es-CO', {
   timeStyle: 'short',
 });
 
+const LIMITE_NOTA_CIERRE = 280;
+
 function DetalleMasivo() {
   const { idMasivo } = useParams();
   const navegar = useNavigate();
-  const location = useLocation();
   const { usuario } = useAuth();
 
   const [masivo, setMasivo] = useState(null);
@@ -30,6 +31,9 @@ function DetalleMasivo() {
   const [cargando, setCargando] = useState(true);
   const [cerrando, setCerrando] = useState(false);
   const [confirmandoCierre, setConfirmandoCierre] = useState(false);
+  const [notaCierre, setNotaCierre] = useState('');
+  const [notaCierreVisible, setNotaCierreVisible] = useState(false);
+  const [notaCierreExpandida, setNotaCierreExpandida] = useState(false);
   const [mensajeError, setMensajeError] = useState('');
   const [paginaActual, setPaginaActual] = useState(1);
 
@@ -39,7 +43,6 @@ function DetalleMasivo() {
     usuario,
     PERMISOS.CERRAR_INCIDENTE_MASIVO
   );
-  const volverADiasActivos = location.state?.origen === 'dias-activos';
 
   useEffect(() => {
     cargarDetalle();
@@ -71,9 +74,10 @@ function DetalleMasivo() {
       setCerrando(true);
       setMensajeError('');
 
-      await masivoServicio.cerrarMasivo(idMasivo);
+      await masivoServicio.cerrarMasivo(idMasivo, notaCierre);
 
       setConfirmandoCierre(false);
+      setNotaCierre('');
       await cargarDetalle();
     } catch (error) {
       setMensajeError(error.message || 'No fue posible cerrar el masivo.');
@@ -87,17 +91,17 @@ function DetalleMasivo() {
     return FORMATO_FECHA.format(new Date(fecha));
   };
 
-  const formatearUsuarios = (usuariosAfectados, usuariosTotales) => {
-    const tieneUsuariosTotales =
-      usuariosTotales !== null &&
-      usuariosTotales !== undefined &&
-      usuariosTotales !== '';
+  const formatearUsuarios = (usuariosAfectados, usuariosOperacion) => {
+    const tieneUsuariosOperacion =
+      usuariosOperacion !== null &&
+      usuariosOperacion !== undefined &&
+      usuariosOperacion !== '';
 
-    if (!tieneUsuariosTotales) {
+    if (!tieneUsuariosOperacion) {
       return usuariosAfectados ?? 0;
     }
 
-    return `${usuariosAfectados ?? 0} / ${usuariosTotales}`;
+    return `${usuariosAfectados ?? 0} / ${usuariosOperacion}`;
   };
 
   const irAlInicioDeTabla = () => {
@@ -176,13 +180,6 @@ function DetalleMasivo() {
   };
 
   const volver = () => {
-    if (volverADiasActivos) {
-      navegar('/configuracion-avanzada', {
-        state: { vistaActiva: 'horario' },
-      });
-      return;
-    }
-
     navegar('/masivos');
   };
 
@@ -211,6 +208,13 @@ function DetalleMasivo() {
   }
 
   const masivoCerrado = masivo.estado === 'cerrado';
+  const tieneNotaCierre = Boolean(masivo.notaCierre);
+  const notaCierreEsExtensa =
+    tieneNotaCierre && masivo.notaCierre.length > LIMITE_NOTA_CIERRE;
+  const notaCierreParaMostrar =
+    notaCierreEsExtensa && !notaCierreExpandida
+      ? `${masivo.notaCierre.slice(0, LIMITE_NOTA_CIERRE).trimEnd()}...`
+      : masivo.notaCierre;
 
   return (
     <LayoutPrincipal>
@@ -267,7 +271,7 @@ function DetalleMasivo() {
             <strong>
               {formatearUsuarios(
                 masivo.usuariosAfectados,
-                masivo.usuariosTotales
+                masivo.usuariosOperacion
               )}
             </strong>
           </div>
@@ -296,9 +300,45 @@ function DetalleMasivo() {
                   {formatearFecha(masivo.fechaHoraCierre)}
                 </strong>
               </div>
+
+              {tieneNotaCierre && (
+                <>
+                  <div className="detalle-masivo__fecha-divisor" />
+
+                  <button
+                    type="button"
+                    className="detalle-masivo__boton-nota-cierre"
+                    onClick={() => {
+                      setNotaCierreVisible((valorActual) => !valorActual);
+                      setNotaCierreExpandida(false);
+                    }}
+                  >
+                    Nota de cierre
+                  </button>
+                </>
+              )}
             </>
           )}
         </section>
+
+        {notaCierreVisible && tieneNotaCierre && (
+          <section className="detalle-masivo__nota-cierre">
+            <span>Nota de cierre</span>
+            <p>{notaCierreParaMostrar}</p>
+
+            {notaCierreEsExtensa && (
+              <button
+                type="button"
+                className="detalle-masivo__nota-cierre-ver-mas"
+                onClick={() =>
+                  setNotaCierreExpandida((valorActual) => !valorActual)
+                }
+              >
+                {notaCierreExpandida ? 'Ver menos' : 'Ver mas'}
+              </button>
+            )}
+          </section>
+        )}
 
         {puedeCerrarMasivo && confirmandoCierre && !masivoCerrado && (
           <section className="detalle-masivo__confirmacion-cierre">
@@ -316,13 +356,30 @@ function DetalleMasivo() {
               <p>
                 Confirma esta acción solo si el seguimiento del masivo ya finalizó.
               </p>
+              <div className="detalle-masivo__campo-nota-cierre">
+                <label htmlFor="notaCierreMasivo">
+                  Nota de cierre <span>Opcional</span>
+                </label>
+
+                <textarea
+                  id="notaCierreMasivo"
+                  value={notaCierre}
+                  onChange={(evento) => setNotaCierre(evento.target.value)}
+                  rows="6"
+                  placeholder="Agrega contexto del cierre, acciones realizadas, acuerdos o cualquier observacion relevante."
+                  disabled={cerrando}
+                />
+              </div>
             </div>
 
             <div className="detalle-masivo__confirmacion-acciones">
               <button
                 type="button"
                 className="detalle-masivo__btn-cancelar"
-                onClick={() => setConfirmandoCierre(false)}
+                onClick={() => {
+                  setConfirmandoCierre(false);
+                  setNotaCierre('');
+                }}
                 disabled={cerrando}
               >
                 Cancelar
@@ -365,27 +422,25 @@ function DetalleMasivo() {
               </div>
 
               {!cargando && totalPaginas > 1 && (
-                <div className="detalle-masivo__paginacion-superior">
+                <div className="detalle-masivo__paginacion-mini">
                   <button
                     type="button"
-                    className="detalle-masivo__boton-ver-mas detalle-masivo__boton-ver-mas--secundario"
                     onClick={irPaginaAnterior}
                     disabled={paginaActual === 1}
                   >
-                    ← Anterior
+                    ←
                   </button>
 
-                  <span className="detalle-masivo__paginacion-info">
-                    Página {paginaActual} de {totalPaginas}
+                  <span>
+                    {paginaActual}/{totalPaginas}
                   </span>
 
                   <button
                     type="button"
-                    className="detalle-masivo__boton-ver-mas"
                     onClick={irPaginaSiguiente}
                     disabled={paginaActual === totalPaginas}
                   >
-                    Siguiente →
+                    →
                   </button>
                 </div>
               )}
@@ -410,7 +465,7 @@ function DetalleMasivo() {
                     <td>
                       {formatearUsuarios(
                         cav.usuariosAfectados,
-                        cav.usuariosTotalidad
+                        cav.usuariosOperacion
                       )}
                     </td>
                   </tr>
@@ -425,3 +480,4 @@ function DetalleMasivo() {
 }
 
 export default DetalleMasivo;
+

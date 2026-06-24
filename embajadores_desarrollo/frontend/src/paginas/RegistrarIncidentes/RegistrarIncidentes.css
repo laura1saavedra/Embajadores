@@ -218,7 +218,7 @@
 
 .ri__tabla-head {
   display: grid;
-  grid-template-columns: 28px 1fr 1fr 40px;
+  grid-template-columns: 28px 1fr 1fr 1fr 40px;
   gap: 8px;
   padding: 0 2px 6px;
   border-bottom: 1px solid #f0dede;
@@ -244,7 +244,7 @@
 
 .ri__fila {
   display: grid;
-  grid-template-columns: 28px 1fr 1fr 40px;
+  grid-template-columns: 28px 1fr 1fr 1fr 40px;
   gap: 8px;
   align-items: center;
   background: #fafafa;
@@ -451,7 +451,7 @@
 
   .ri__tabla-head,
   .ri__fila {
-    grid-template-columns: 28px 1fr 1fr 34px;
+    grid-template-columns: 28px 1fr 1fr 1fr 34px;
     gap: 7px;
   }
 

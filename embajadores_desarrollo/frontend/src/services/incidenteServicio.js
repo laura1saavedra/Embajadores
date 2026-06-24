@@ -35,6 +35,12 @@ const normalizarAplicacion = (a) => ({
   nombre: a.nombre_aplicacion,
 });
 
+const normalizarServicio = (s) => ({
+  id: String(s.id_servicio),
+  nombre: s.nombre_servicio,
+  aplicacionId: String(s.aplicacion_id || ''),
+});
+
 const normalizarAplicacionesAfectadas = (raw) => {
   if (!Array.isArray(raw)) return [];
 
@@ -45,6 +51,8 @@ const normalizarAplicacionesAfectadas = (raw) => {
       idAplicacionesAfectados: String(item.id_aplicaciones_afectados || ''),
       aplicacionId: String(item.aplicacion_id || ''),
       aplicacionNombre: item.nombre_aplicacion || '',
+      servicioId: String(item.servicio_id || ''),
+      servicioNombre: item.nombre_servicio || '',
       tipoFallaId: String(item.tipo_falla_id || ''),
       tipoFallaNombre: item.nombre_tipo || '',
 
@@ -115,7 +123,7 @@ const normalizarIncidente = (i) => {
     mensaje: i.mensaje || '',
 
     usuariosAfectados: i.usuarios_afectados ?? 0,
-    usuariosTotalidad: i.usuarios_totalidad ?? null,
+    usuariosOperacion: i.usuarios_operacion ?? null,
 
     estado: i.estado || 'abierto',
     fechaHoraReporte: i.fecha_hora_reporte || null,
@@ -169,13 +177,14 @@ const prepararCrear = (form) => ({
 
   usuarios_afectados: parseInt(form.usuariosAfectados, 10),
 
-  usuarios_totalidad:
-    form.usuariosTotalidad !== undefined && form.usuariosTotalidad !== ''
-      ? parseInt(form.usuariosTotalidad, 10)
+  usuarios_operacion:
+    form.usuariosOperacion !== undefined && form.usuariosOperacion !== ''
+      ? parseInt(form.usuariosOperacion, 10)
       : null,
 
   aplicaciones_afectadas: (form.filasAplicaciones || []).map((f) => ({
     aplicacion_id: parseInt(f.aplicacionId, 10),
+    servicio_id: f.servicioId ? parseInt(f.servicioId, 10) : null,
     tipo_falla_id: parseInt(f.tipoFallaId, 10),
   })),
 });
@@ -195,10 +204,10 @@ const prepararActualizar = (datos) => {
     payload.usuarios_afectados = parseInt(datos.usuariosAfectados, 10);
   }
 
-  if (datos.usuariosTotalidad !== undefined) {
-    payload.usuarios_totalidad =
-      datos.usuariosTotalidad !== ''
-        ? parseInt(datos.usuariosTotalidad, 10)
+  if (datos.usuariosOperacion !== undefined) {
+    payload.usuarios_operacion =
+      datos.usuariosOperacion !== ''
+        ? parseInt(datos.usuariosOperacion, 10)
         : null;
   }
 
@@ -209,6 +218,7 @@ const prepararActualizar = (datos) => {
   if (Array.isArray(datos.filasAplicaciones)) {
     payload.aplicaciones_afectadas = datos.filasAplicaciones.map((f) => ({
       aplicacion_id: parseInt(f.aplicacionId, 10),
+      servicio_id: f.servicioId ? parseInt(f.servicioId, 10) : null,
       tipo_falla_id: parseInt(f.tipoFallaId, 10),
     }));
   }
@@ -246,6 +256,11 @@ class IncidenteServicio {
     return (data || []).map(normalizarAplicacion);
   }
 
+  async obtenerServicios() {
+    const { data } = await apiClient.get(config.endpoints.servicios());
+    return (data || []).map(normalizarServicio);
+  }
+
   async obtenerTiposFalla() {
     const { data } = await apiClient.get(config.endpoints.tiposFalla());
 
@@ -261,6 +276,9 @@ class IncidenteServicio {
     if (filtros.estado) params.append('estado', filtros.estado);
     if (filtros.ciudadId) params.append('ciudad_id', filtros.ciudadId);
     if (filtros.cavId) params.append('cav_id', filtros.cavId);
+    if (filtros.aplicacionId) {
+      params.append('aplicacion_id', filtros.aplicacionId);
+    }
     if (filtros.tipoFalla) params.append('tipo_falla', filtros.tipoFalla);
     if (filtros.busqueda) params.append('busqueda', filtros.busqueda);
     if (filtros.anio) params.append('anio', filtros.anio);
@@ -379,3 +397,4 @@ class IncidenteServicio {
 const incidenteServicio = new IncidenteServicio();
 
 export default incidenteServicio;
+
