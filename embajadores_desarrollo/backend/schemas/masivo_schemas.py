@@ -17,7 +17,7 @@ class IncidenteAsociadoRespuesta(BaseModel):
     ciudad_nombre: Optional[str] = None
 
     usuarios_afectados: int
-    usuarios_totalidad: Optional[int] = None
+    usuarios_operacion: Optional[int] = None
 
     estado: Literal["abierto", "cerrado"]
 
@@ -49,8 +49,7 @@ class MasivoRespuesta(BaseModel):
 
     fecha_hora_generado: datetime
     fecha_hora_cierre: Optional[datetime] = None
-
-    dias_activos: Optional[int] = None
+    nota_cierre: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -78,8 +77,7 @@ class MasivoDetalleRespuesta(BaseModel):
 
     fecha_hora_generado: datetime
     fecha_hora_cierre: Optional[datetime] = None
-
-    dias_activos: Optional[int] = None
+    nota_cierre: Optional[str] = None
 
     incidentes_asociados: List[IncidenteAsociadoRespuesta]
 
@@ -92,6 +90,7 @@ class MasivoDetalleRespuesta(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 class MasivoCambioEstado(BaseModel):
     estado: Literal["cerrado"]
+    nota_cierre: Optional[str] = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────

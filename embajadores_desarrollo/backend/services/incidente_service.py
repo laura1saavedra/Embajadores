@@ -7,7 +7,7 @@ CRUD completo de incidentes con trazabilidad (historial).
 import logging
 from typing import Optional, List, Tuple, Any, Dict
 
-from sqlalchemy import extract, or_, cast, String
+from sqlalchemy import and_, extract, or_, cast, String, text
 from sqlalchemy.orm import joinedload
 
 from db import get_db_session
@@ -17,12 +17,46 @@ from models import (
     Usuario,
     HistorialIncidente,
     Aplicacion,
+    Servicio,
     TipoFalla,
     AplicacionAfectada,
 )
 from services.masivo_service import MasivoService
+from services.servicio_service import asegurar_tabla_servicios
 
 logger = logging.getLogger(__name__)
+
+
+def _asegurar_columna_servicio_aplicaciones_afectadas(db) -> None:
+    asegurar_tabla_servicios(db)
+
+    db.execute(text("""
+        ALTER TABLE "API_PROD".aplicaciones_afectados
+        ADD COLUMN IF NOT EXISTS servicio_id INTEGER NULL
+    """))
+
+    db.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_aplicaciones_afectados_servicio_id
+        ON "API_PROD".aplicaciones_afectados(servicio_id)
+    """))
+
+    db.execute(text("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = 'fk_aplicaciones_afectados_servicio'
+            ) THEN
+                ALTER TABLE "API_PROD".aplicaciones_afectados
+                ADD CONSTRAINT fk_aplicaciones_afectados_servicio
+                FOREIGN KEY (servicio_id)
+                REFERENCES "API_PROD".servicios(id_servicio)
+                ON UPDATE CASCADE
+                ON DELETE RESTRICT;
+            END IF;
+        END $$;
+    """))
 
 
 # ── Helpers de serialización ──────────────────────────────────────────────────
@@ -117,7 +151,7 @@ def _incidente_a_dict(
         "tiene_aplicaciones_masivas": tiene_masivas,
         "tipo_registro": tipo_registro,
         "usuarios_afectados": i.usuarios_afectados,
-        "usuarios_totalidad": i.usuarios_totalidad,
+        "usuarios_operacion": i.usuarios_operacion,
         "estado": i.estado,
         "fecha_hora_reporte": i.fecha_hora_reporte.isoformat()
         if i.fecha_hora_reporte
@@ -128,6 +162,10 @@ def _incidente_a_dict(
                 "aplicacion_id": aa.aplicacion_id,
                 "nombre_aplicacion": aa.aplicacion.nombre_aplicacion
                 if aa.aplicacion
+                else None,
+                "servicio_id": aa.servicio_id,
+                "nombre_servicio": aa.servicio.nombre_servicio
+                if aa.servicio
                 else None,
                 "tipo_falla_id": aa.tipo_falla_id,
                 "nombre_tipo": aa.tipo_falla.nombre_tipo
@@ -165,6 +203,8 @@ def _registrar_historial(
 
 
 def _consultar_incidente_completo(db, id_incidente: int):
+    _asegurar_columna_servicio_aplicaciones_afectadas(db)
+
     return (
         db.query(Incidente)
         .options(
@@ -172,6 +212,8 @@ def _consultar_incidente_completo(db, id_incidente: int):
             joinedload(Incidente.usuario),
             joinedload(Incidente.aplicaciones_afectadas)
             .joinedload(AplicacionAfectada.aplicacion),
+            joinedload(Incidente.aplicaciones_afectadas)
+            .joinedload(AplicacionAfectada.servicio),
             joinedload(Incidente.aplicaciones_afectadas)
             .joinedload(AplicacionAfectada.tipo_falla),
         )
@@ -190,6 +232,7 @@ class IncidenteService:
         estado: Optional[str] = None,
         cav_id: Optional[int] = None,
         ciudad_id: Optional[int] = None,
+        aplicacion_id: Optional[int] = None,
         tipo_falla: Optional[str] = None,
         busqueda: Optional[str] = None,
         anio: Optional[int] = None,
@@ -198,6 +241,8 @@ class IncidenteService:
     ) -> Tuple[Optional[List[Dict]], Optional[str]]:
         try:
             with get_db_session() as db:
+                _asegurar_columna_servicio_aplicaciones_afectadas(db)
+
                 query = (
                     db.query(Incidente)
                     .options(
@@ -205,6 +250,8 @@ class IncidenteService:
                         joinedload(Incidente.usuario),
                         joinedload(Incidente.aplicaciones_afectadas)
                         .joinedload(AplicacionAfectada.aplicacion),
+                        joinedload(Incidente.aplicaciones_afectadas)
+                        .joinedload(AplicacionAfectada.servicio),
                         joinedload(Incidente.aplicaciones_afectadas)
                         .joinedload(AplicacionAfectada.tipo_falla),
                     )
@@ -220,19 +267,28 @@ class IncidenteService:
                 if ciudad_id:
                     query = query.join(Incidente.cav).filter(Cav.ciudad_id == ciudad_id)
 
-                if tipo_falla:
-                    termino_tipo = tipo_falla.strip()
+                if aplicacion_id or tipo_falla:
+                    condiciones_aplicacion = [
+                        AplicacionAfectada.masivo_id.is_(None),
+                    ]
 
-                    query = (
-                        query.join(
-                            AplicacionAfectada,
-                            AplicacionAfectada.incidente_id == Incidente.id_incidente,
+                    if aplicacion_id:
+                        condiciones_aplicacion.append(
+                            AplicacionAfectada.aplicacion_id == aplicacion_id
                         )
-                        .join(
-                            TipoFalla,
-                            TipoFalla.id_tipo_falla == AplicacionAfectada.tipo_falla_id,
+
+                    if tipo_falla:
+                        termino_tipo = tipo_falla.strip()
+                        condiciones_aplicacion.append(
+                            AplicacionAfectada.tipo_falla.has(
+                                TipoFalla.nombre_tipo.ilike(f"%{termino_tipo}%")
+                            )
                         )
-                        .filter(TipoFalla.nombre_tipo.ilike(f"%{termino_tipo}%"))
+
+                    query = query.filter(
+                        Incidente.aplicaciones_afectadas.any(
+                            and_(*condiciones_aplicacion)
+                        )
                     )
 
                 if anio:
@@ -247,15 +303,24 @@ class IncidenteService:
                 if busqueda:
                     termino = f"%{busqueda}%"
 
-                    query = (
-                        query.outerjoin(Incidente.aplicaciones_afectadas)
-                        .outerjoin(AplicacionAfectada.aplicacion)
-                        .outerjoin(AplicacionAfectada.tipo_falla)
-                        .filter(
-                            or_(
-                                cast(Incidente.id_incidente, String).ilike(termino),
-                                Aplicacion.nombre_aplicacion.ilike(termino),
-                                TipoFalla.nombre_tipo.ilike(termino),
+                    query = query.filter(
+                        or_(
+                            cast(Incidente.id_incidente, String).ilike(termino),
+                            Incidente.aplicaciones_afectadas.any(
+                                and_(
+                                    AplicacionAfectada.masivo_id.is_(None),
+                                    or_(
+                                        AplicacionAfectada.aplicacion.has(
+                                            Aplicacion.nombre_aplicacion.ilike(termino)
+                                        ),
+                                        AplicacionAfectada.servicio.has(
+                                            Servicio.nombre_servicio.ilike(termino)
+                                        ),
+                                        AplicacionAfectada.tipo_falla.has(
+                                            TipoFalla.nombre_tipo.ilike(termino)
+                                        ),
+                                    ),
+                                )
                             )
                         )
                     )
@@ -292,6 +357,8 @@ class IncidenteService:
     def crear_incidente(datos: Dict[str, Any]) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
+                _asegurar_columna_servicio_aplicaciones_afectadas(db)
+
                 cav = db.query(Cav).filter(Cav.id_cav == datos.get("cav_id")).first()
 
                 if not cav:
@@ -317,6 +384,7 @@ class IncidenteService:
                 for item in aplicaciones_afectadas:
                     clave = (
                         item.get("aplicacion_id"),
+                        item.get("servicio_id"),
                         item.get("tipo_falla_id"),
                     )
 
@@ -329,19 +397,28 @@ class IncidenteService:
                     combinaciones.add(clave)
 
                 usuarios_afectados = datos.get("usuarios_afectados")
-                usuarios_totalidad = datos.get("usuarios_totalidad")
+                usuarios_operacion = datos.get("usuarios_operacion")
 
                 if usuarios_afectados is None:
                     return None, "El campo usuarios_afectados es obligatorio"
 
-                if usuarios_totalidad is not None and usuarios_afectados > usuarios_totalidad:
-                    return None, "Los usuarios afectados no pueden ser mayores que los usuarios totales"
+                if usuarios_operacion is None:
+                    return None, "El campo usuarios_operacion es obligatorio"
+
+                if usuarios_afectados <= 0:
+                    return None, "Los usuarios afectados deben ser mayores que cero"
+
+                if usuarios_operacion <= 0:
+                    return None, "Los usuarios en operacion deben ser mayores que cero"
+
+                if usuarios_afectados > usuarios_operacion:
+                    return None, "Los usuarios afectados no pueden ser mayores que los usuarios en operacion"
 
                 nuevo = Incidente(
                     cav_id=datos["cav_id"],
                     usuario_id=usuario_id,
                     usuarios_afectados=usuarios_afectados,
-                    usuarios_totalidad=usuarios_totalidad,
+                    usuarios_operacion=usuarios_operacion,
                     estado="abierto",
                 )
 
@@ -352,6 +429,7 @@ class IncidenteService:
 
                 for item in aplicaciones_afectadas:
                     aplicacion_id = item.get("aplicacion_id")
+                    servicio_id = item.get("servicio_id")
                     tipo_falla_id = item.get("tipo_falla_id")
 
                     aplicacion = db.query(Aplicacion).filter(
@@ -360,6 +438,17 @@ class IncidenteService:
 
                     if not aplicacion:
                         return None, f"Aplicación {aplicacion_id} no encontrada"
+
+                    if servicio_id:
+                        servicio = db.query(Servicio).filter(
+                            Servicio.id_servicio == servicio_id
+                        ).first()
+
+                        if not servicio:
+                            return None, f"Servicio {servicio_id} no encontrado"
+
+                        if servicio.aplicacion_id != aplicacion_id:
+                            return None, "El servicio seleccionado no pertenece a la aplicación"
 
                     tipo_falla = db.query(TipoFalla).filter(
                         TipoFalla.id_tipo_falla == tipo_falla_id
@@ -372,6 +461,7 @@ class IncidenteService:
                         AplicacionAfectada(
                             incidente_id=id_incidente_creado,
                             aplicacion_id=aplicacion_id,
+                            servicio_id=servicio_id,
                             tipo_falla_id=tipo_falla_id,
                         )
                     )
@@ -486,29 +576,40 @@ class IncidenteService:
                     else:
                         incidente.usuario_id = None
 
-                if "usuarios_afectados" in datos or "usuarios_totalidad" in datos:
+                if "usuarios_afectados" in datos or "usuarios_operacion" in datos:
                     nuevos_afectados = datos.get(
                         "usuarios_afectados",
                         incidente.usuarios_afectados,
                     )
-                    nueva_totalidad = datos.get(
-                        "usuarios_totalidad",
-                        incidente.usuarios_totalidad,
+                    nueva_operacion = datos.get(
+                        "usuarios_operacion",
+                        incidente.usuarios_operacion,
                     )
 
                     if nuevos_afectados is None:
                         return None, "El campo usuarios_afectados es obligatorio"
 
-                    if nueva_totalidad is not None and nuevos_afectados > nueva_totalidad:
-                        return None, "Los usuarios afectados no pueden ser mayores que los usuarios totales"
+                    if nueva_operacion is None:
+                        return None, "El campo usuarios_operacion es obligatorio"
+
+                    if nuevos_afectados <= 0:
+                        return None, "Los usuarios afectados deben ser mayores que cero"
+
+                    if nueva_operacion <= 0:
+                        return None, "Los usuarios en operacion deben ser mayores que cero"
+
+                    if nuevos_afectados > nueva_operacion:
+                        return None, "Los usuarios afectados no pueden ser mayores que los usuarios en operacion"
 
                     incidente.usuarios_afectados = nuevos_afectados
-                    incidente.usuarios_totalidad = nueva_totalidad
+                    incidente.usuarios_operacion = nueva_operacion
 
                 if (
                     "aplicaciones_afectadas" in datos
                     and datos["aplicaciones_afectadas"] is not None
                 ):
+                    _asegurar_columna_servicio_aplicaciones_afectadas(db)
+
                     aplicaciones_afectadas = datos["aplicaciones_afectadas"]
 
                     if not aplicaciones_afectadas:
@@ -519,6 +620,7 @@ class IncidenteService:
                     for item in aplicaciones_afectadas:
                         clave = (
                             item.get("aplicacion_id"),
+                            item.get("servicio_id"),
                             item.get("tipo_falla_id"),
                         )
 
@@ -539,6 +641,7 @@ class IncidenteService:
 
                     for item in aplicaciones_afectadas:
                         aplicacion_id = item.get("aplicacion_id")
+                        servicio_id = item.get("servicio_id")
                         tipo_falla_id = item.get("tipo_falla_id")
 
                         if not aplicacion_id:
@@ -554,6 +657,17 @@ class IncidenteService:
                         if not aplicacion:
                             return None, f"Aplicación {aplicacion_id} no encontrada"
 
+                        if servicio_id:
+                            servicio = db.query(Servicio).filter(
+                                Servicio.id_servicio == servicio_id
+                            ).first()
+
+                            if not servicio:
+                                return None, f"Servicio {servicio_id} no encontrado"
+
+                            if servicio.aplicacion_id != aplicacion_id:
+                                return None, "El servicio seleccionado no pertenece a la aplicación"
+
                         tipo_falla = db.query(TipoFalla).filter(
                             TipoFalla.id_tipo_falla == tipo_falla_id
                         ).first()
@@ -565,6 +679,7 @@ class IncidenteService:
                             AplicacionAfectada(
                                 incidente_id=id_incidente,
                                 aplicacion_id=aplicacion_id,
+                                servicio_id=servicio_id,
                                 tipo_falla_id=tipo_falla_id,
                             )
                         )
@@ -710,3 +825,4 @@ class IncidenteService:
         except Exception as e:
             logger.error(f"Error al obtener resumen: {e}")
             return None, str(e)
+

@@ -8,8 +8,11 @@ import logging
 import unicodedata
 from typing import Optional, List, Tuple, Dict, Any
 
+from sqlalchemy.orm import joinedload
+
 from db import get_db_session
-from models import Aplicacion, AplicacionAfectada, Masivo
+from models import Aplicacion, AplicacionAfectada, Masivo, Servicio
+from services.servicio_service import asegurar_tabla_servicios
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +35,17 @@ def _aplicacion_a_dict(aplicacion: Aplicacion) -> Dict[str, Any]:
     return {
         "id_aplicacion": aplicacion.id_aplicacion,
         "nombre_aplicacion": aplicacion.nombre_aplicacion,
+        "servicios": [
+            {
+                "id_servicio": servicio.id_servicio,
+                "nombre_servicio": servicio.nombre_servicio,
+                "aplicacion_id": servicio.aplicacion_id,
+            }
+            for servicio in sorted(
+                aplicacion.servicios or [],
+                key=lambda item: item.nombre_servicio.lower()
+            )
+        ],
     }
 
 
@@ -41,8 +55,11 @@ class AplicacionService:
     def listar_aplicaciones() -> Tuple[Optional[List[Dict]], Optional[str]]:
         try:
             with get_db_session() as db:
+                asegurar_tabla_servicios(db)
+
                 aplicaciones = (
                     db.query(Aplicacion)
+                    .options(joinedload(Aplicacion.servicios))
                     .order_by(Aplicacion.nombre_aplicacion.asc())
                     .all()
                 )
@@ -57,8 +74,11 @@ class AplicacionService:
     def obtener_aplicacion(id_aplicacion: int) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
+                asegurar_tabla_servicios(db)
+
                 aplicacion = (
                     db.query(Aplicacion)
+                    .options(joinedload(Aplicacion.servicios))
                     .filter(Aplicacion.id_aplicacion == id_aplicacion)
                     .first()
                 )
@@ -76,6 +96,8 @@ class AplicacionService:
     def crear_aplicacion(nombre_aplicacion: str) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
+                asegurar_tabla_servicios(db)
+
                 nombre = _normalizar_nombre(nombre_aplicacion)
 
                 if not nombre:
@@ -115,6 +137,8 @@ class AplicacionService:
     ) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
+                asegurar_tabla_servicios(db)
+
                 nombre = _normalizar_nombre(nombre_aplicacion)
 
                 if not nombre:
@@ -163,6 +187,8 @@ class AplicacionService:
     def eliminar_aplicacion(id_aplicacion: int) -> Tuple[Optional[Dict], Optional[str]]:
         try:
             with get_db_session() as db:
+                asegurar_tabla_servicios(db)
+
                 aplicacion = (
                     db.query(Aplicacion)
                     .filter(Aplicacion.id_aplicacion == id_aplicacion)
@@ -172,31 +198,41 @@ class AplicacionService:
                 if not aplicacion:
                     return None, "Aplicación no encontrada"
 
-                tiene_incidentes = (
+                tiene_incidentes_historial = (
                     db.query(AplicacionAfectada)
                     .filter(AplicacionAfectada.aplicacion_id == id_aplicacion)
                     .first()
                     is not None
                 )
 
-                if tiene_incidentes:
-                    return None, (
-                        "No se puede eliminar la aplicación porque tiene "
-                        "incidentes asociados"
-                    )
-
-                tiene_masivos = (
+                tiene_incidentes_resumen = (
                     db.query(Masivo)
                     .filter(Masivo.aplicacion_id == id_aplicacion)
                     .first()
                     is not None
                 )
 
-                if tiene_masivos:
+                if tiene_incidentes_historial and tiene_incidentes_resumen:
                     return None, (
-                        "No se puede eliminar la aplicación porque tiene "
-                        "incidentes masivos asociados"
+                        "No se puede eliminar la aplicacion porque esta asociada "
+                        "a incidentes en historial y resumen"
                     )
+
+                if tiene_incidentes_historial:
+                    return None, (
+                        "No se puede eliminar la aplicacion porque esta asociada "
+                        "a incidentes en historial"
+                    )
+
+                if tiene_incidentes_resumen:
+                    return None, (
+                        "No se puede eliminar la aplicacion porque esta asociada "
+                        "a incidentes en resumen"
+                    )
+
+                db.query(Servicio).filter(
+                    Servicio.aplicacion_id == id_aplicacion
+                ).delete(synchronize_session=False)
 
                 db.delete(aplicacion)
                 db.commit()

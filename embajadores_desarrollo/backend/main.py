@@ -92,9 +92,9 @@ from routes.contactos import contactos_router
 from routes.incidentes import incidentes_router
 from routes.whatsapp import whatsapp_router
 from routes.aplicaciones import aplicaciones_router
+from routes.servicios import servicios_router
 from routes.tipos_falla import tipos_falla_router
 from routes.masivos import masivos_router
-from routes.configuracion import configuracion_router
 from services.masivo_service import MasivoService
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Autenticacion"])
@@ -105,12 +105,11 @@ app.include_router(contactos_router, prefix="/api/contactos", tags=["Contactos"]
 app.include_router(incidentes_router, prefix="/api/incidentes", tags=["Incidentes"])
 app.include_router(whatsapp_router, prefix="/api/whatsapp", tags=["WhatsApp Grupos"])
 app.include_router(aplicaciones_router, prefix="/api/aplicaciones", tags=["Aplicaciones"])
+app.include_router(servicios_router, prefix="/api/servicios", tags=["Servicios"])
 app.include_router(tipos_falla_router, prefix="/api/tipos-falla", tags=["Tipos de Falla"])
 app.include_router(masivos_router, prefix="/api/masivos", tags=["Incidentes Masivos"])
-app.include_router(configuracion_router, prefix="/api/configuracion", tags=["Configuracion"])
-
 logger.info(
-    "Routers registrados: auth, ciudades, cavs, usuarios, contactos, incidentes, whatsapp, aplicaciones, tipos-falla, masivos, configuracion"
+    "Routers registrados: auth, ciudades, cavs, usuarios, contactos, incidentes, whatsapp, aplicaciones, servicios, tipos-falla, masivos"
 )
 
 
@@ -163,6 +162,7 @@ def root():
             "incidentes": "/api/incidentes",
             "masivos": "/api/masivos",
             "aplicaciones": "/api/aplicaciones",
+            "servicios": "/api/servicios",
             "docs": "/docs",
             "health": "/health",
         },

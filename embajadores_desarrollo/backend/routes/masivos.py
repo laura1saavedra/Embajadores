@@ -9,6 +9,7 @@ Endpoints para incidentes masivos:
 """
 
 from typing import Optional
+import unicodedata
 
 from fastapi import APIRouter, Header, Query
 from fastapi.responses import JSONResponse
@@ -40,8 +41,8 @@ def _extraer_token_authorization(authorization: Optional[str]):
 
 
 def _normalizar_permiso(nombre: str) -> str:
-    reemplazos = str.maketrans("áéíóúÁÉÍÓÚñÑ", "aeiouAEIOUnN")
-    return (nombre or "").translate(reemplazos).lower().strip()
+    texto = unicodedata.normalize("NFKD", nombre or "")
+    return "".join(c for c in texto if not unicodedata.combining(c)).lower().strip()
 
 
 def _validar_permiso(authorization: Optional[str], permiso_requerido: str):
@@ -126,7 +127,10 @@ def cerrar_masivo(
             content={"error": "Solo se permite cerrar el incidente masivo"},
         )
 
-    resultado, error = MasivoService.cerrar_masivo(idmasivo)
+    resultado, error = MasivoService.cerrar_masivo(
+        idmasivo,
+        nota_cierre=body.nota_cierre,
+    )
 
     if error:
         codigo = 404 if "no encontrado" in error.lower() else 400

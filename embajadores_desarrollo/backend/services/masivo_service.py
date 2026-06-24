@@ -4,7 +4,7 @@ services/masivo_service.py
 Logica de incidentes masivos.
 
 Un incidente masivo se genera cuando existen
-5 o mas incidentes abiertos en un lapso de 5 minutos
+5 o mas incidentes abiertos
 con la misma aplicacion y tipo de falla.
 
 Si ya existe un masivo abierto con la misma aplicacion y tipo de falla,
@@ -16,6 +16,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, Tuple, Dict, Any, List
 
+from sqlalchemy import text
 from sqlalchemy.orm import joinedload
 
 from db import get_db_session
@@ -26,15 +27,50 @@ from models import (
     AplicacionAfectada,
     Cav,
 )
+from services.servicio_service import asegurar_tabla_servicios
 
 logger = logging.getLogger(__name__)
 
+MIN_INCIDENTES_MASIVO = 5
 
-def _asegurar_timezone_utc(fecha: datetime) -> datetime:
-    if fecha.tzinfo is None:
-        return fecha.replace(tzinfo=timezone.utc)
 
-    return fecha.astimezone(timezone.utc)
+def _asegurar_columna_servicio_aplicaciones_afectadas(db) -> None:
+    asegurar_tabla_servicios(db)
+
+    db.execute(text("""
+        ALTER TABLE "API_PROD".aplicaciones_afectados
+        ADD COLUMN IF NOT EXISTS servicio_id INTEGER NULL
+    """))
+
+    db.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_aplicaciones_afectados_servicio_id
+        ON "API_PROD".aplicaciones_afectados(servicio_id)
+    """))
+
+    db.execute(text("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = 'fk_aplicaciones_afectados_servicio'
+            ) THEN
+                ALTER TABLE "API_PROD".aplicaciones_afectados
+                ADD CONSTRAINT fk_aplicaciones_afectados_servicio
+                FOREIGN KEY (servicio_id)
+                REFERENCES "API_PROD".servicios(id_servicio)
+                ON UPDATE CASCADE
+                ON DELETE RESTRICT;
+            END IF;
+        END $$;
+    """))
+
+
+def _asegurar_columnas_masivo(db) -> None:
+    db.execute(text("""
+        ALTER TABLE "API_PROD".masivo
+        ADD COLUMN IF NOT EXISTS nota_cierre TEXT NULL
+    """))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -56,6 +92,16 @@ def _obtener_incidentes_unicos_desde_aplicaciones(
 def _masivo_a_dict(masivo: Masivo) -> Dict[str, Any]:
     aplicaciones_afectadas = masivo.aplicaciones_afectadas or []
     incidentes = _obtener_incidentes_unicos_desde_aplicaciones(aplicaciones_afectadas)
+    fecha_generado = masivo.fecha_hora_generado
+
+    fechas_reporte = [
+        incidente.fecha_hora_reporte
+        for incidente in incidentes
+        if incidente.fecha_hora_reporte
+    ]
+
+    if fechas_reporte:
+        fecha_generado = min(fechas_reporte)
 
     cavs_unicos = set()
 
@@ -81,14 +127,14 @@ def _masivo_a_dict(masivo: Masivo) -> Dict[str, Any]:
         "cantidad_cavs_afectados": len(cavs_unicos),
         "estado": masivo.estado,
         "fecha_hora_generado": (
-            masivo.fecha_hora_generado.isoformat()
-            if masivo.fecha_hora_generado else None
+            fecha_generado.isoformat()
+            if fecha_generado else None
         ),
         "fecha_hora_cierre": (
             masivo.fecha_hora_cierre.isoformat()
             if masivo.fecha_hora_cierre else None
         ),
-        "dias_activos": masivo.dias_activos,
+        "nota_cierre": masivo.nota_cierre,
     }
 
 
@@ -117,7 +163,7 @@ def _detalle_masivo_a_dict(masivo: Masivo) -> Dict[str, Any]:
                 "ciudad_id": ciudad.id_ciudad if ciudad else None,
                 "ciudad_nombre": ciudad.nombre_ciudad if ciudad else None,
                 "usuarios_afectados": 0,
-                "usuarios_totalidad": None,
+                "usuarios_operacion": None,
                 "cantidad_incidentes": 0,
                 "incidentes": [],
                 "_incidentes_ids": set(),
@@ -130,12 +176,12 @@ def _detalle_masivo_a_dict(masivo: Masivo) -> Dict[str, Any]:
 
             cavs_resumen[incidente.cav_id]["cantidad_incidentes"] += 1
 
-            if incidente.usuarios_totalidad is not None:
-                if cavs_resumen[incidente.cav_id]["usuarios_totalidad"] is None:
-                    cavs_resumen[incidente.cav_id]["usuarios_totalidad"] = 0
+            if incidente.usuarios_operacion is not None:
+                if cavs_resumen[incidente.cav_id]["usuarios_operacion"] is None:
+                    cavs_resumen[incidente.cav_id]["usuarios_operacion"] = 0
 
-                cavs_resumen[incidente.cav_id]["usuarios_totalidad"] += (
-                    incidente.usuarios_totalidad
+                cavs_resumen[incidente.cav_id]["usuarios_operacion"] += (
+                    incidente.usuarios_operacion
                 )
 
             cavs_resumen[incidente.cav_id]["incidentes"].append({
@@ -144,7 +190,7 @@ def _detalle_masivo_a_dict(masivo: Masivo) -> Dict[str, Any]:
                 "aplicacion_id": aa.aplicacion_id,
                 "tipo_falla_id": aa.tipo_falla_id,
                 "usuarios_afectados": incidente.usuarios_afectados,
-                "usuarios_totalidad": incidente.usuarios_totalidad,
+                "usuarios_operacion": incidente.usuarios_operacion,
                 "estado": incidente.estado,
                 "fecha_hora_reporte": (
                     incidente.fecha_hora_reporte.isoformat()
@@ -172,6 +218,8 @@ def _recalcular_totales_masivo(db, masivo: Masivo) -> None:
     aplicaciones_afectados.masivo_id
     """
 
+    _asegurar_columna_servicio_aplicaciones_afectadas(db)
+
     aplicaciones_afectadas = (
         db.query(AplicacionAfectada)
         .options(joinedload(AplicacionAfectada.incidente))
@@ -192,14 +240,14 @@ def _recalcular_totales_masivo(db, masivo: Masivo) -> None:
         for i in incidentes_del_masivo
     )
 
-    todos_tienen_totalidad = all(
-        i.usuarios_totalidad is not None
+    todos_tienen_operacion = all(
+        i.usuarios_operacion is not None
         for i in incidentes_del_masivo
     )
 
-    if incidentes_del_masivo and todos_tienen_totalidad:
+    if incidentes_del_masivo and todos_tienen_operacion:
         masivo.usuarios_totales = sum(
-            i.usuarios_totalidad or 0
+            i.usuarios_operacion or 0
             for i in incidentes_del_masivo
         )
     else:
@@ -217,6 +265,9 @@ class MasivoService:
         db,
         incidente_id: int,
     ) -> None:
+
+        _asegurar_columna_servicio_aplicaciones_afectadas(db)
+        _asegurar_columnas_masivo(db)
 
         incidente = (
             db.query(Incidente)
@@ -277,16 +328,30 @@ class MasivoService:
                 for aa in aplicaciones_relacionadas
             }
 
-            if len(incidentes_unicos) < 5:
+            if len(incidentes_unicos) < MIN_INCIDENTES_MASIVO:
                 continue
 
-            nuevo_masivo = Masivo(
-                aplicacion_id=aplicacion_id,
-                tipo_falla_id=tipo_falla_id,
-                usuarios_totales=None,
-                usuarios_totales_afectados=0,
-                estado="abierto",
+            fecha_primer_incidente = min(
+                (
+                    aa.incidente.fecha_hora_reporte
+                    for aa in aplicaciones_relacionadas
+                    if aa.incidente and aa.incidente.fecha_hora_reporte
+                ),
+                default=None,
             )
+
+            datos_masivo = {
+                "aplicacion_id": aplicacion_id,
+                "tipo_falla_id": tipo_falla_id,
+                "usuarios_totales": None,
+                "usuarios_totales_afectados": 0,
+                "estado": "abierto",
+            }
+
+            if fecha_primer_incidente:
+                datos_masivo["fecha_hora_generado"] = fecha_primer_incidente
+
+            nuevo_masivo = Masivo(**datos_masivo)
 
             db.add(nuevo_masivo)
             db.flush()
@@ -308,14 +373,17 @@ class MasivoService:
     @staticmethod
     def asociar_incidentes_a_masivos_activos() -> Tuple[Optional[Dict], Optional[str]]:
         """
-        Cada 5 minutos:
+        Cada ejecucion:
         - Busca masivos activos.
         - Busca aplicaciones afectadas abiertas sin masivo asociado.
-        - Si coinciden en aplicación y tipo de falla, las asocia al masivo.
+        - Si coinciden en aplicacion y tipo de falla, las asocia al masivo.
         """
 
         try:
             with get_db_session() as db:
+                _asegurar_columna_servicio_aplicaciones_afectadas(db)
+                _asegurar_columnas_masivo(db)
+
                 masivos_activos = (
                     db.query(Masivo)
                     .filter(Masivo.estado == "abierto")
@@ -375,6 +443,9 @@ class MasivoService:
 
         try:
             with get_db_session() as db:
+                _asegurar_columna_servicio_aplicaciones_afectadas(db)
+                _asegurar_columnas_masivo(db)
+
                 query = (
                     db.query(Masivo)
                     .options(
@@ -407,6 +478,9 @@ class MasivoService:
 
         try:
             with get_db_session() as db:
+                _asegurar_columna_servicio_aplicaciones_afectadas(db)
+                _asegurar_columnas_masivo(db)
+
                 masivo = (
                     db.query(Masivo)
                     .options(
@@ -432,11 +506,14 @@ class MasivoService:
 
     @staticmethod
     def cerrar_masivo(
-        idmasivo: int
+        idmasivo: int,
+        nota_cierre: Optional[str] = None,
     ) -> Tuple[Optional[Dict], Optional[str]]:
 
         try:
             with get_db_session() as db:
+                _asegurar_columnas_masivo(db)
+
                 masivo = (
                     db.query(Masivo)
                     .filter(Masivo.idmasivo == idmasivo)
@@ -451,13 +528,7 @@ class MasivoService:
 
                 masivo.estado = "cerrado"
                 masivo.fecha_hora_cierre = datetime.now(timezone.utc)
-
-                if masivo.fecha_hora_generado:
-                    diferencia = (
-                        _asegurar_timezone_utc(masivo.fecha_hora_cierre)
-                        - _asegurar_timezone_utc(masivo.fecha_hora_generado)
-                    )
-                    masivo.dias_activos = diferencia.days
+                masivo.nota_cierre = (nota_cierre or "").strip() or None
 
                 db.commit()
 
@@ -475,6 +546,9 @@ class MasivoService:
 
         try:
             with get_db_session() as db:
+                _asegurar_columna_servicio_aplicaciones_afectadas(db)
+                _asegurar_columnas_masivo(db)
+
                 total = db.query(Masivo).count()
 
                 abiertos = (
@@ -498,3 +572,4 @@ class MasivoService:
         except Exception as e:
             logger.error(f"Error al obtener resumen de masivos: {e}")
             return None, str(e)
+

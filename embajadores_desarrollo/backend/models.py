@@ -7,7 +7,7 @@ Esquema: API_PROD
 """
 
 from sqlalchemy import (
-    Boolean, Column, Integer, String, DateTime,
+    Boolean, Column, Integer, String, DateTime, Text,
     ForeignKey, UniqueConstraint, Index
 )
 from sqlalchemy.orm import relationship
@@ -225,7 +225,7 @@ class Incidente(Base):
         nullable=False
     )
 
-    usuarios_totalidad = Column(Integer, nullable=True)
+    usuarios_operacion = Column("usuarios_totalidad", Integer, nullable=False)
     usuarios_afectados = Column(Integer, nullable=False)
 
     estado = Column(String(20), nullable=False, default="abierto")
@@ -268,6 +268,12 @@ class Aplicacion(Base):
     id_aplicacion = Column(Integer, primary_key=True, autoincrement=True)
     nombre_aplicacion = Column(String(255), nullable=False)
 
+    servicios = relationship(
+        "Servicio",
+        back_populates="aplicacion",
+        lazy="select"
+    )
+
     aplicaciones_afectadas = relationship(
         "AplicacionAfectada",
         back_populates="aplicacion",
@@ -278,6 +284,32 @@ class Aplicacion(Base):
 
     def __repr__(self):
         return f"<Aplicacion id={self.id_aplicacion} nombre={self.nombre_aplicacion}>"
+
+
+class Servicio(Base):
+    __tablename__ = "servicios"
+    __table_args__ = (
+        UniqueConstraint("aplicacion_id", "nombre_servicio", name="uq_servicio_aplicacion_nombre"),
+        {"schema": "API_PROD"}
+    )
+
+    id_servicio = Column(Integer, primary_key=True, autoincrement=True)
+    nombre_servicio = Column(String(255), nullable=False)
+    aplicacion_id = Column(
+        Integer,
+        ForeignKey("API_PROD.aplicaciones.id_aplicacion", ondelete="RESTRICT", onupdate="CASCADE"),
+        nullable=False
+    )
+
+    aplicacion = relationship("Aplicacion", back_populates="servicios")
+    aplicaciones_afectadas = relationship(
+        "AplicacionAfectada",
+        back_populates="servicio",
+        lazy="select"
+    )
+
+    def __repr__(self):
+        return f"<Servicio id={self.id_servicio} nombre={self.nombre_servicio}>"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -309,6 +341,12 @@ class AplicacionAfectada(Base):
         nullable=False
     )
 
+    servicio_id = Column(
+        Integer,
+        ForeignKey("API_PROD.servicios.id_servicio", ondelete="RESTRICT", onupdate="CASCADE"),
+        nullable=True
+    )
+
     masivo_id = Column(
         Integer,
         ForeignKey("API_PROD.masivo.idmasivo", ondelete="SET NULL", onupdate="CASCADE"),
@@ -317,6 +355,7 @@ class AplicacionAfectada(Base):
 
     incidente = relationship("Incidente", back_populates="aplicaciones_afectadas")
     aplicacion = relationship("Aplicacion", back_populates="aplicaciones_afectadas")
+    servicio = relationship("Servicio", back_populates="aplicaciones_afectadas")
     tipo_falla = relationship("TipoFalla", back_populates="aplicaciones_afectadas")
     masivo = relationship("Masivo", back_populates="aplicaciones_afectadas")
 
@@ -362,7 +401,7 @@ class Masivo(Base):
     )
 
     fecha_hora_cierre = Column(DateTime(timezone=True), nullable=True)
-    dias_activos = Column(Integer, nullable=True)
+    nota_cierre = Column(Text, nullable=True)
 
     aplicacion = relationship("Aplicacion", back_populates="masivos")
     tipo_falla = relationship("TipoFalla", back_populates="masivos")
@@ -404,3 +443,4 @@ class HistorialIncidente(Base):
 
     def __repr__(self):
         return f"<HistorialIncidente id={self.id_historial} incidente={self.incidente_id}>"
+
