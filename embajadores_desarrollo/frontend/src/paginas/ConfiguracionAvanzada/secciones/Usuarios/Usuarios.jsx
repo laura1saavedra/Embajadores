@@ -21,6 +21,7 @@ const ROL_FORM_INICIAL = {
 
 const ELEMENTOS_POR_PAGINA = 4;
 const ROLES_POR_PAGINA = 2;
+const DOMINIOS_HITSS_PERMITIDOS = ['@hitss.com'];
 
 const obtenerClaseBadgeRol = (nombreRol = '') => {
   const rolNormalizado = nombreRol.toLowerCase();
@@ -38,6 +39,13 @@ const obtenerClaseBadgeRol = (nombreRol = '') => {
   }
 
   return 'usuarios__badge--general';
+};
+
+const esCorreoHitss = (correo = '') => {
+  const correoNormalizado = correo.trim().toLowerCase();
+  return DOMINIOS_HITSS_PERMITIDOS.some((dominio) =>
+    correoNormalizado.endsWith(dominio)
+  );
 };
 
 function Usuarios({ onVolver }) {
@@ -58,6 +66,9 @@ function Usuarios({ onVolver }) {
   const [rolEliminando, setRolEliminando] = useState(null);
   const [rolesPermisosExpandidos, setRolesPermisosExpandidos] = useState({});
   const [usuarioContrasena, setUsuarioContrasena] = useState(null);
+  const [usuarioAcceso, setUsuarioAcceso] = useState(null);
+  const [vistaAcceso, setVistaAcceso] = useState('menu');
+  const [mostrarAvisoCierreAcceso, setMostrarAvisoCierreAcceso] = useState(false);
   const [mensajeContrasena, setMensajeContrasena] = useState('');
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -314,10 +325,20 @@ function Usuarios({ onVolver }) {
     setUsuarioEditando(null);
   };
 
+  const prepararAcceso = (usuario) => {
+    limpiarMensajes();
+    setUsuarioAcceso(usuario);
+    setVistaAcceso('menu');
+    setMensajeContrasena('');
+  };
+
   const validarFormulario = () => {
     if (!form.nombre.trim()) return 'El nombre es obligatorio.';
     if (!form.apellido.trim()) return 'El apellido es obligatorio.';
     if (!form.correo.trim()) return 'El correo corporativo es obligatorio.';
+    if (!esCorreoHitss(form.correo)) {
+      return 'Solo se aceptan correos con dominio @hitss.com.';
+    }
     if (!form.rolId) return 'Selecciona un rol.';
 
     return '';
@@ -509,6 +530,85 @@ function Usuarios({ onVolver }) {
     }
   };
 
+  const generarContrasenaTemporalAcceso = async () => {
+    if (!usuarioAcceso) return;
+
+    try {
+      setGuardando(true);
+      setMensajeContrasena('');
+
+      const respuesta = await configuracionServicio.generarContrasenaAccesoUsuario(
+        usuarioAcceso.idUsuario
+      );
+
+      setUsuarioAcceso(respuesta);
+      setVistaAcceso('recuperacion');
+      setMensajeContrasena('Contraseña temporal generada. Copiala y compartela con el usuario.');
+      await cargarDatos();
+    } catch (error) {
+      setMensajeContrasena(error.message || 'No fue posible generar la contraseña temporal.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const forzarCambioContrasena = async () => {
+    if (!usuarioAcceso) return;
+
+    try {
+      setGuardando(true);
+      setMensajeContrasena('');
+
+      await configuracionServicio.actualizarUsuario(usuarioAcceso.idUsuario, {
+        debeCambiarContrasena: true,
+      });
+
+      setMensajeContrasena('El usuario debera cambiar la contraseña en el siguiente inicio de sesion.');
+      setUsuarioAcceso((estadoActual) => ({
+        ...estadoActual,
+        debeCambiarContrasena: true,
+      }));
+      await cargarDatos();
+      setUsuarioAcceso(null);
+      setVistaAcceso('menu');
+      setVista('listado');
+      subirAlInicio();
+    } catch (error) {
+      setMensajeContrasena(error.message || 'No fue posible activar el cambio obligatorio.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const alternarEstadoDesdeAcceso = async () => {
+    if (!usuarioAcceso) return;
+
+    try {
+      setGuardando(true);
+      setMensajeContrasena('');
+
+      const usuarioActualizado = await configuracionServicio.cambiarEstadoUsuario(
+        usuarioAcceso.idUsuario,
+        !usuarioAcceso.activo
+      );
+
+      setUsuarioAcceso((estadoActual) => ({
+        ...estadoActual,
+        activo: usuarioActualizado.activo,
+      }));
+      setMensajeContrasena(
+        usuarioActualizado.activo
+          ? 'Usuario activado correctamente.'
+          : 'Usuario desactivado correctamente.'
+      );
+      await cargarDatos();
+    } catch (error) {
+      setMensajeContrasena(error.message || 'No fue posible cambiar el estado.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   const confirmarEliminar = async () => {
     if (!usuarioEliminando) return;
 
@@ -608,11 +708,45 @@ function Usuarios({ onVolver }) {
     }
   };
 
+  const copiarContrasenaAcceso = async () => {
+    if (!usuarioAcceso?.contrasenaTemporal) return;
+
+    try {
+      await navigator.clipboard.writeText(usuarioAcceso.contrasenaTemporal);
+      setMensajeContrasena('Contraseña copiada al portapapeles.');
+    } catch {
+      setMensajeContrasena('No fue posible copiar la contraseña.');
+    }
+  };
+
   const cerrarModalContrasena = () => {
     setUsuarioContrasena(null);
     setMensajeContrasena('');
     setVista('listado');
     subirAlInicio();
+  };
+
+  const cerrarModalAccesoForzado = () => {
+    if (
+      vistaAcceso === 'recuperacion' &&
+      usuarioAcceso?.contrasenaTemporal &&
+      !usuarioAcceso?.debeCambiarContrasena
+    ) {
+      setMostrarAvisoCierreAcceso(true);
+      return;
+    }
+
+    setUsuarioAcceso(null);
+    setVistaAcceso('menu');
+    setMostrarAvisoCierreAcceso(false);
+    setMensajeContrasena('');
+  };
+
+  const cerrarModalAcceso = () => {
+    setUsuarioAcceso(null);
+    setVistaAcceso('menu');
+    setMostrarAvisoCierreAcceso(false);
+    setMensajeContrasena('');
   };
 
   if (cargando) {
@@ -652,7 +786,7 @@ function Usuarios({ onVolver }) {
                 onClick={() => setMensajeError('')}
                 aria-label="Cerrar mensaje"
               >
-                �
+                ×
               </button>
             </div>
           )}
@@ -666,7 +800,7 @@ function Usuarios({ onVolver }) {
                 onClick={() => setMensajeExito('')}
                 aria-label="Cerrar mensaje"
               >
-                �
+                ×
               </button>
             </div>
           )}
@@ -795,21 +929,15 @@ function Usuarios({ onVolver }) {
 
                           <button
                             type="button"
-                            onClick={() => alternarEstado(usuario)}
+                            onClick={() =>
+                              usuario.debeCambiarContrasena
+                                ? regenerarContrasena(usuario)
+                                : prepararAcceso(usuario)
+                            }
                             disabled={guardando}
                           >
-                            {usuario.activo ? 'Desactivar' : 'Activar'}
+                            {usuario.debeCambiarContrasena ? 'Contraseña' : 'Acceso'}
                           </button>
-
-                          {usuario.debeCambiarContrasena && (
-                            <button
-                              type="button"
-                              onClick={() => regenerarContrasena(usuario)}
-                              disabled={guardando}
-                            >
-                              Contraseña
-                            </button>
-                          )}
 
                           <button
                             type="button"
@@ -1060,7 +1188,7 @@ function Usuarios({ onVolver }) {
                 onClick={() => setMensajeError('')}
                 aria-label="Cerrar mensaje"
               >
-                �
+                ×
               </button>
             </div>
           )}
@@ -1074,7 +1202,7 @@ function Usuarios({ onVolver }) {
                 onClick={() => setMensajeExito('')}
                 aria-label="Cerrar mensaje"
               >
-                �
+                ×
               </button>
             </div>
           )}
@@ -1203,7 +1331,7 @@ function Usuarios({ onVolver }) {
                 onClick={() => setMensajeError('')}
                 aria-label="Cerrar mensaje"
               >
-                �
+                ×
               </button>
             </div>
           )}
@@ -1217,7 +1345,7 @@ function Usuarios({ onVolver }) {
                 onClick={() => setMensajeExito('')}
                 aria-label="Cerrar mensaje"
               >
-                �
+                ×
               </button>
             </div>
           )}
@@ -1263,21 +1391,21 @@ function Usuarios({ onVolver }) {
                   <input
                     id="correoUsuario"
                     type="email"
-                    placeholder="ejemplo@empresa.com"
+                    placeholder="nombre@hitss.com"
                     value={form.correo}
                     onChange={(evento) =>
                       actualizarCampo('correo', evento.target.value)
                     }
                   />
                 </div>
-                <small>Debe ser un correo corporativo valido.</small>
+                <small>Solo se aceptan correos con dominio @hitss.com.</small>
               </div>
 
               <div className="usuarios__campo usuarios__campo--full">
                 <SelectBuscable
                   id="rolUsuario"
                   label="Rol"
-                  placeholder="— Seleccione rol —"
+                  placeholder="Seleccione rol"
                   placeholderBusqueda="Buscar rol..."
                   opciones={opcionesRoles}
                   valor={form.rolId}
@@ -1404,6 +1532,157 @@ function Usuarios({ onVolver }) {
         </div>
       )}
 
+      {usuarioAcceso && (
+        <div className="usuarios__modal-fondo">
+          <div className="usuarios__modal usuarios__modal--acceso">
+            <button
+              type="button"
+              className="usuarios__modal-cerrar"
+              onClick={cerrarModalAcceso}
+              aria-label="Cerrar"
+            >
+              x
+            </button>
+
+            <h2>Gestionar acceso</h2>
+            <p>
+              {usuarioAcceso.nombre} {usuarioAcceso.apellido}
+            </p>
+
+            {vistaAcceso === 'menu' ? (
+              <div className="usuarios__modal-scroll">
+                {usuarioAcceso.activo && (
+                  <button
+                    type="button"
+                    className="usuarios__access-card"
+                    onClick={generarContrasenaTemporalAcceso}
+                    disabled={guardando}
+                  >
+                    <strong>Olvidó su contraseña</strong>
+                    <span>
+                      Despues de entregar la contraseña temporal, obliga al usuario a cambiarla en el siguiente inicio de sesion.
+                    </span>
+                  </button>
+                )}
+
+                <div className="usuarios__access-section usuarios__access-section--danger">
+                  <h3>{usuarioAcceso.activo ? 'Desactivar usuario' : 'Activar usuario'}</h3>
+                  <p>
+                    {usuarioAcceso.activo
+                      ? 'Desactiva el usuario si no debe ingresar temporalmente a la plataforma.'
+                      : 'Activa el usuario para permitirle iniciar sesion nuevamente.'}
+                  </p>
+
+                  <button
+                    type="button"
+                    className={usuarioAcceso.activo ? 'usuarios__boton-eliminar' : 'usuarios__boton-secundario'}
+                    onClick={alternarEstadoDesdeAcceso}
+                    disabled={guardando}
+                  >
+                    {usuarioAcceso.activo ? 'Desactivar usuario' : 'Activar usuario'}
+                  </button>
+                </div>
+
+                {mensajeContrasena && (
+                  <div className="usuarios__modal-feedback">
+                    {mensajeContrasena}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="usuarios__modal-scroll">
+                <button
+                  type="button"
+                  className="usuarios__volver usuarios__volver--modal"
+                  onClick={() => {
+                    setVistaAcceso('menu');
+                    setMensajeContrasena('');
+                  }}
+                  aria-label="Volver a gestionar acceso"
+                >
+                  ←
+                </button>
+
+                <div className="usuarios__modal-icono">OK</div>
+                <h2>Contraseña temporal creada</h2>
+                <p>
+                  La contraseña se genero automaticamente. Copiala y compartela
+                  con el usuario para que pueda iniciar sesion en la plataforma.
+                </p>
+
+                {mensajeContrasena && (
+                  <div className="usuarios__modal-feedback usuarios__modal-feedback--top">
+                    {mensajeContrasena}
+                  </div>
+                )}
+
+                <label>Contraseña temporal</label>
+                <div className="usuarios__password-box">
+                  <strong>{usuarioAcceso.contrasenaTemporal}</strong>
+                  <button type="button" onClick={copiarContrasenaAcceso}>
+                    Copiar
+                  </button>
+                </div>
+
+                <div className="usuarios__info">
+                  <span>i</span>
+                  <p>Despues de entregar la contraseña temporal, obliga al usuario a cambiarla en el siguiente inicio de sesion.</p>
+                </div>
+
+                <button
+                  type="button"
+                  className="usuarios__boton-cambio usuarios__boton-ancho"
+                  onClick={forzarCambioContrasena}
+                  disabled={guardando || usuarioAcceso.debeCambiarContrasena}
+                >
+                  {usuarioAcceso.debeCambiarContrasena
+                    ? 'Cambio obligatorio activado'
+                    : 'Obligar cambio en el siguiente inicio de sesión'}
+                </button>
+
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="usuarios__modal-boton"
+              onClick={cerrarModalAccesoForzado}
+            >
+              Cerrar
+            </button>
+
+            {mostrarAvisoCierreAcceso && (
+              <div className="usuarios__access-warning-layer">
+                <div className="usuarios__access-warning">
+                  <h3>Cambio obligatorio pendiente</h3>
+                  <p>
+                    Vuelve y pulsa <strong>Obligar cambio en el siguiente inicio de sesión</strong> para que el usuario cree una nueva contraseña.
+                  </p>
+
+                  <div className="usuarios__access-warning-actions">
+                    <button
+                      type="button"
+                      className="usuarios__boton-secundario"
+                      onClick={() => setMostrarAvisoCierreAcceso(false)}
+                    >
+                      Volver
+                    </button>
+
+                    <button
+                      type="button"
+                      className="usuarios__boton-cambio"
+                      onClick={cerrarModalAcceso}
+                    >
+                      Cerrar sin aplicar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {usuarioContrasena && (
         <div className="usuarios__modal-fondo">
           <div className="usuarios__modal">
@@ -1458,3 +1737,6 @@ function Usuarios({ onVolver }) {
 }
 
 export default Usuarios;
+
+
+

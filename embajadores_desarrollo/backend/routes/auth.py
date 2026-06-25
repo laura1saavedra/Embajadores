@@ -119,3 +119,4 @@ def cambiar_contrasena(
         return JSONResponse(status_code=400, content={"error": error})
 
     return datos
+

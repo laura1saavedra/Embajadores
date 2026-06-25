@@ -516,6 +516,15 @@ class ConfiguracionServicio {
     return normalizarUsuario(data);
   }
 
+  async generarContrasenaAccesoUsuario(idUsuario) {
+    const { data } = await apiClient.post(
+      `${config.endpoints.usuarios()}/${idUsuario}/generar-contrasena-acceso`,
+      {}
+    );
+
+    return normalizarUsuario(data);
+  }
+
   async eliminarUsuario(idUsuario) {
     const { data } = await apiClient.delete(
       `${config.endpoints.usuarios()}/${idUsuario}`

@@ -7,7 +7,12 @@ Endpoints para gestionar usuarios desde Configuracion Avanzada.
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
-from schemas.usuario_schemas import RolActualizar, RolCrear, UsuarioActualizar, UsuarioCrear
+from schemas.usuario_schemas import (
+    RolActualizar,
+    RolCrear,
+    UsuarioActualizar,
+    UsuarioCrear,
+)
 from services.usuario_service import UsuarioService
 
 
@@ -175,6 +180,17 @@ def cambiar_estado_usuario(
 @usuarios_router.post("/{id_usuario}/regenerar-contrasena")
 def regenerar_contrasena_temporal(id_usuario: int):
     datos, error = UsuarioService.regenerar_contrasena_temporal(id_usuario)
+
+    if error:
+        codigo = 404 if "no encontrado" in error.lower() else 400
+        return JSONResponse(status_code=codigo, content={"error": error})
+
+    return datos
+
+
+@usuarios_router.post("/{id_usuario}/generar-contrasena-acceso")
+def generar_contrasena_acceso(id_usuario: int):
+    datos, error = UsuarioService.generar_contrasena_acceso(id_usuario)
 
     if error:
         codigo = 404 if "no encontrado" in error.lower() else 400

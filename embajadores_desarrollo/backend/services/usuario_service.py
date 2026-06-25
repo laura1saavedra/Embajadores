@@ -16,7 +16,10 @@ from sqlalchemy.orm import joinedload
 
 from db import get_db_session
 from models import Incidente, Permiso, Rol, RolPermiso, Usuario
-from utils.password_utils import generate_temp_password, hash_password
+from utils.password_utils import (
+    generate_temp_password,
+    hash_password,
+)
 from utils.security_utils import (
     validate_corporate_email,
     validate_person_name,
@@ -704,6 +707,44 @@ class UsuarioService:
         except Exception as e:
             logger.error(
                 f"Error al regenerar contrasena temporal del usuario {id_usuario}: {e}"
+            )
+            return None, str(e)
+
+    @staticmethod
+    def generar_contrasena_acceso(
+        id_usuario: int,
+    ) -> Tuple[Optional[Dict], Optional[str]]:
+        try:
+            contrasena_temporal = generate_temp_password()
+            nueva_hash = hash_password(contrasena_temporal)
+
+            with get_db_session() as db:
+                usuario = (
+                    db.query(Usuario)
+                    .options(joinedload(Usuario.rol))
+                    .filter(Usuario.id_usuario == id_usuario)
+                    .first()
+                )
+
+                if not usuario:
+                    return None, "Usuario no encontrado"
+
+                usuario.contrasena_hash = nueva_hash
+                usuario.debe_cambiar_contrasena = False
+                usuario.intentos_fallidos = 0
+                usuario.bloqueado_hasta = None
+
+                db.commit()
+                db.refresh(usuario)
+
+                respuesta = _usuario_a_dict(usuario)
+                respuesta["contrasena_temporal"] = contrasena_temporal
+
+                return respuesta, None
+
+        except Exception as e:
+            logger.error(
+                f"Error al generar contrasena de acceso del usuario {id_usuario}: {e}"
             )
             return None, str(e)
 

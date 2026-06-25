@@ -10,15 +10,8 @@ import os
 import re
 
 
-# Referencia tomada de Event Control:
-# event_control/services/user_service.py -> UserService.ALLOWED_DOMAINS
-# Se mantienen los mismos dominios por defecto para conservar compatibilidad
-# funcional durante la adaptacion a Embajadores.
 DOMINIOS_CORPORATIVOS_POR_DEFECTO = (
-    "@globalhitss.com",
-    "@globalhitss",
-    "@admin.com",
-    "@test.com",
+    "@hitss.com",
 )
 
 
@@ -110,9 +103,8 @@ def validate_corporate_email(email: str) -> dict:
 
     if not is_email_domain_allowed(email_normalizado):
         resultado["is_valid"] = False
-        dominios = ", ".join(get_allowed_email_domains())
         resultado["errors"].append(
-            f"El dominio del correo no esta autorizado. Dominios permitidos: {dominios}"
+            "Solo se aceptan correos con dominio @hitss.com"
         )
 
     return resultado
