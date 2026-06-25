@@ -93,6 +93,23 @@ def _masivo_a_dict(masivo: Masivo) -> Dict[str, Any]:
     aplicaciones_afectadas = masivo.aplicaciones_afectadas or []
     incidentes = _obtener_incidentes_unicos_desde_aplicaciones(aplicaciones_afectadas)
     fecha_generado = masivo.fecha_hora_generado
+    usuarios_totales = masivo.usuarios_totales
+    usuarios_totales_afectados = masivo.usuarios_totales_afectados
+
+    if incidentes:
+        usuarios_totales_afectados = sum(
+            incidente.usuarios_afectados or 0
+            for incidente in incidentes
+        )
+
+        if usuarios_totales is None and all(
+            incidente.usuarios_operacion is not None
+            for incidente in incidentes
+        ):
+            usuarios_totales = sum(
+                incidente.usuarios_operacion or 0
+                for incidente in incidentes
+            )
 
     fechas_reporte = [
         incidente.fecha_hora_reporte
@@ -121,8 +138,8 @@ def _masivo_a_dict(masivo: Masivo) -> Dict[str, Any]:
             masivo.tipo_falla.nombre_tipo
             if masivo.tipo_falla else None
         ),
-        "usuarios_totales": masivo.usuarios_totales,
-        "usuarios_totales_afectados": masivo.usuarios_totales_afectados,
+        "usuarios_totales": usuarios_totales,
+        "usuarios_totales_afectados": usuarios_totales_afectados,
         "cantidad_incidentes": len(incidentes),
         "cantidad_cavs_afectados": len(cavs_unicos),
         "estado": masivo.estado,
