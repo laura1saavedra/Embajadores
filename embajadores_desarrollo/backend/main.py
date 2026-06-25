@@ -98,3 +98,129 @@ from routes.masivos import masivos_router
 from services.masivo_service import MasivoService
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Autenticacion"])
+app.include_router(ciudades_router, prefix="/api/ciudades", tags=["Ciudades"])
+app.include_router(cavs_router, prefix="/api/cavs", tags=["CAV"])
+app.include_router(usuarios_router, prefix="/api/usuarios", tags=["Usuarios"])
+app.include_router(contactos_router, prefix="/api/contactos", tags=["Contactos"])
+app.include_router(incidentes_router, prefix="/api/incidentes", tags=["Incidentes"])
+app.include_router(whatsapp_router, prefix="/api/whatsapp", tags=["WhatsApp Grupos"])
+app.include_router(aplicaciones_router, prefix="/api/aplicaciones", tags=["Aplicaciones"])
+app.include_router(servicios_router, prefix="/api/servicios", tags=["Servicios"])
+app.include_router(tipos_falla_router, prefix="/api/tipos-falla", tags=["Tipos de Falla"])
+app.include_router(masivos_router, prefix="/api/masivos", tags=["Incidentes Masivos"])
+logger.info(
+    "Routers registrados: auth, ciudades, cavs, usuarios, contactos, incidentes, whatsapp, aplicaciones, servicios, tipos-falla, masivos"
+)
+
+
+# ── Tarea automatica de masivos ───────────────────────────────────────────────
+async def tarea_asociar_incidentes_masivos():
+    """
+    Ejecuta cada 5 minutos la asociacion automatica
+    de incidentes individuales a masivos activos.
+    """
+    while True:
+        try:
+            resultado, error = MasivoService.asociar_incidentes_a_masivos_activos()
+
+            if error:
+                logger.error(f"Error en tarea automatica de masivos: {error}")
+            else:
+                logger.info(f"Tarea automatica de masivos ejecutada: {resultado}")
+
+        except Exception as e:
+            logger.error(f"Error inesperado en tarea automatica de masivos: {e}")
+
+        await asyncio.sleep(30)
+
+
+# ── Startup ───────────────────────────────────────────────────────────────────
+@app.on_event("startup")
+def startup_check():
+    db_ok = check_connection()
+
+    if db_ok:
+        logger.info("Conexion a base de datos verificada correctamente")
+        asyncio.create_task(tarea_asociar_incidentes_masivos())
+        logger.info("Tarea automatica de asociacion de masivos iniciada")
+    else:
+        logger.error("No fue posible conectar con la base de datos")
+
+
+# ── Endpoints de sistema ──────────────────────────────────────────────────────
+@app.get("/", tags=["Sistema"])
+def root():
+    return {
+        "mensaje": "Embajadores API activa",
+        "version": "1.0.0",
+        "timestamp": datetime.now().isoformat(),
+        "endpoints": {
+            "ciudades": "/api/ciudades",
+            "cavs": "/api/cavs",
+            "usuarios": "/api/usuarios",
+            "contactos": "/api/contactos",
+            "incidentes": "/api/incidentes",
+            "masivos": "/api/masivos",
+            "aplicaciones": "/api/aplicaciones",
+            "servicios": "/api/servicios",
+            "docs": "/docs",
+            "health": "/health",
+        },
+    }
+
+
+@app.get("/health", tags=["Sistema"])
+def health_check():
+    db_ok = check_connection()
+    estado = "ok" if db_ok else "error"
+    codigo = 200 if db_ok else 503
+
+    return JSONResponse(
+        status_code=codigo,
+        content={
+            "estado": estado,
+            "base_de_datos": "conectada" if db_ok else "sin conexion",
+            "base": DB_NAME,
+            "host": DB_HOST,
+            "timestamp": datetime.now().isoformat(),
+        },
+    )
+
+
+@app.get("/debug/tablas", tags=["Debug"])
+def listar_tablas():
+    """
+    Lista las tablas del esquema API_PROD.
+    Solo para desarrollo.
+    """
+    from sqlalchemy import text
+    from db import engine
+
+    with engine.connect() as conn:
+        result = conn.execute(
+            text(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'API_PROD' "
+                "ORDER BY table_name"
+            )
+        )
+        tablas = [row[0] for row in result]
+
+    return {
+        "esquema": "API_PROD",
+        "tablas": tablas,
+    }
+
+
+# ── Punto de entrada ──────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    import uvicorn
+
+    enable_reload = os.getenv("UVICORN_RELOAD", "false").lower() == "true"
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=API_PORT,
+        reload=enable_reload,
+    )
