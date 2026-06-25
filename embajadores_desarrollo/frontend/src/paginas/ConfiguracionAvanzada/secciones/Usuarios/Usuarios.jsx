@@ -379,6 +379,9 @@ function Usuarios({ onVolver }) {
       limpiarMensajes();
 
       if (usuarioEditando) {
+        const correoCambio =
+          form.correo.trim().toLowerCase() !== usuarioEditando.correo;
+
         await configuracionServicio.actualizarUsuario(usuarioEditando.idUsuario, {
           nombre: form.nombre.trim(),
           apellido: form.apellido.trim(),
@@ -386,7 +389,20 @@ function Usuarios({ onVolver }) {
           rolId: form.rolId,
         });
 
-        setMensajeExito('Usuario actualizado correctamente.');
+        if (correoCambio) {
+          const respuesta = await configuracionServicio.regenerarContrasenaUsuario(
+            usuarioEditando.idUsuario
+          );
+
+          setUsuarioContrasena(respuesta);
+          setMensajeContrasena('');
+          setMensajeExito(
+            'Usuario actualizado correctamente. Se genero una nueva contraseña temporal.'
+          );
+        } else {
+          setMensajeExito('Usuario actualizado correctamente.');
+        }
+
         await cargarDatos();
         setVista('listado');
         subirAlInicio();
