@@ -91,17 +91,17 @@ function DetalleMasivo() {
     return FORMATO_FECHA.format(new Date(fecha));
   };
 
-  const formatearUsuarios = (usuariosAfectados, usuariosOperacion) => {
-    const tieneUsuariosOperacion =
-      usuariosOperacion !== null &&
-      usuariosOperacion !== undefined &&
-      usuariosOperacion !== '';
+  const formatearValorUsuarios = (usuarios) => {
+    const tieneValorUsuarios =
+      usuarios !== null &&
+      usuarios !== undefined &&
+      usuarios !== '';
 
-    if (!tieneUsuariosOperacion) {
-      return usuariosAfectados ?? 0;
+    if (!tieneValorUsuarios) {
+      return 'Sin registro';
     }
 
-    return `${usuariosAfectados ?? 0} / ${usuariosOperacion}`;
+    return usuarios;
   };
 
   const irAlInicioDeTabla = () => {
@@ -267,18 +267,18 @@ function DetalleMasivo() {
           </div>
 
           <div className="detalle-masivo__tarjeta-resumen">
-            <span>Usuarios afectados</span>
-            <strong>
-              {formatearUsuarios(
-                masivo.usuariosAfectados,
-                masivo.usuariosOperacion
-              )}
-            </strong>
-          </div>
-
-          <div className="detalle-masivo__tarjeta-resumen">
             <span>Tipo de falla</span>
             <strong>{masivo.tipoFallaNombre || 'Sin tipo de falla'}</strong>
+          </div>
+
+          <div className="detalle-masivo__tarjeta-resumen detalle-masivo__tarjeta-resumen--compacta">
+            <span>Usuarios afectados</span>
+            <strong>{formatearValorUsuarios(masivo.usuariosAfectados)}</strong>
+          </div>
+
+          <div className="detalle-masivo__tarjeta-resumen detalle-masivo__tarjeta-resumen--compacta">
+            <span>Usuarios en operación</span>
+            <strong>{formatearValorUsuarios(masivo.usuariosOperacion)}</strong>
           </div>
         </section>
 
@@ -454,6 +454,7 @@ function DetalleMasivo() {
                   <th>Ciudad</th>
                   <th>CAV</th>
                   <th>Usuarios afectados</th>
+                  <th>Usuarios en operación</th>
                 </tr>
               </thead>
 
@@ -462,12 +463,8 @@ function DetalleMasivo() {
                   <tr key={cav.cavId}>
                     <td>{cav.ciudadNombre || 'Sin ciudad'}</td>
                     <td>{cav.cavNombre || 'Sin CAV'}</td>
-                    <td>
-                      {formatearUsuarios(
-                        cav.usuariosAfectados,
-                        cav.usuariosOperacion
-                      )}
-                    </td>
+                    <td>{formatearValorUsuarios(cav.usuariosAfectados)}</td>
+                    <td>{formatearValorUsuarios(cav.usuariosOperacion)}</td>
                   </tr>
                 ))}
               </tbody>

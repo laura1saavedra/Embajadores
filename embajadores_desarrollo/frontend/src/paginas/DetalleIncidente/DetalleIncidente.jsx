@@ -430,6 +430,14 @@ function DetalleIncidente() {
     }).format(new Date(fecha));
   };
 
+  const formatearValorUsuarios = (usuarios) => {
+    if (usuarios === null || usuarios === undefined || usuarios === '') {
+      return 'Sin registrar';
+    }
+
+    return usuarios;
+  };
+
   if (cargando) {
     return (
       <LayoutPrincipal>
@@ -459,18 +467,31 @@ function DetalleIncidente() {
       <ContenedorPagina
         titulo={
           <div className="detalle-incidente__encabezado-titulo">
-            <button
-              type="button"
-              className="detalle-incidente__boton-volver"
-              onClick={() => navegar('/historial-incidentes')}
-              aria-label="Volver al historial"
-            >
-              ←
-            </button>
+            <div className="detalle-incidente__titulo-principal">
+              <button
+                type="button"
+                className="detalle-incidente__boton-volver"
+                onClick={() => navegar('/historial-incidentes')}
+                aria-label="Volver al historial"
+              >
+                ←
+              </button>
 
-            <span className="detalle-incidente__titulo">
-              Incidente #{incidente.idIncidente}
-            </span>
+              <span className="detalle-incidente__titulo">
+                Incidente #{incidente.idIncidente}
+              </span>
+            </div>
+
+            {puedeCerrar && incidente.estado !== 'cerrado' && (
+              <button
+                type="button"
+                className="detalle-incidente__boton detalle-incidente__boton--principal detalle-incidente__boton-cerrar-encabezado"
+                onClick={cerrarIncidente}
+                disabled={cerrando || guardando}
+              >
+                {cerrando ? 'Cerrando...' : 'Cerrar incidente'}
+              </button>
+            )}
           </div>
         }
         descripcion="Aqui puedes revisar la informacion completa del incidente y su historial."
@@ -497,19 +518,20 @@ function DetalleIncidente() {
             <strong>{incidente.cavNombre || 'Sin registrar'}</strong>
           </div>
 
-          <div className="detalle-incidente__tarjeta-resumen">
+          <div className="detalle-incidente__tarjeta-resumen detalle-incidente__tarjeta-resumen--compacta">
             <span className="detalle-incidente__etiqueta">
               Usuarios afectados
             </span>
 
-            <div>
-              <strong>
-                {incidente.usuariosOperacion !== null &&
-                incidente.usuariosOperacion !== undefined
-                  ? `${incidente.usuariosAfectados ?? 0} / ${incidente.usuariosOperacion}`
-                  : incidente.usuariosAfectados ?? 0}
-              </strong>
-            </div>
+            <strong>{formatearValorUsuarios(incidente.usuariosAfectados)}</strong>
+          </div>
+
+          <div className="detalle-incidente__tarjeta-resumen detalle-incidente__tarjeta-resumen--compacta">
+            <span className="detalle-incidente__etiqueta">
+              Usuarios en operación
+            </span>
+
+            <strong>{formatearValorUsuarios(incidente.usuariosOperacion)}</strong>
           </div>
         </div>
 
@@ -531,19 +553,8 @@ function DetalleIncidente() {
           )}
         </div>
 
-        {(puedeCerrar || puedeEditar || puedeEliminar) && (
+        {(puedeEditar || puedeEliminar) && (
           <div className="detalle-incidente__barra-acciones">
-            {puedeCerrar && incidente.estado !== 'cerrado' && (
-              <button
-                type="button"
-                className="detalle-incidente__boton detalle-incidente__boton--principal"
-                onClick={cerrarIncidente}
-                disabled={cerrando || guardando}
-              >
-                {cerrando ? 'Cerrando...' : 'Cerrar incidente'}
-              </button>
-            )}
-
             {puedeEditar && (
               <button
                 type="button"

@@ -41,8 +41,21 @@
 
 .detalle-incidente__encabezado-titulo {
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.detalle-incidente__titulo-principal {
+  display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+}
+
+.detalle-incidente__boton-cerrar-encabezado {
+  flex-shrink: 0;
 }
 
 .detalle-incidente__boton-volver {
@@ -65,7 +78,12 @@
 
 .detalle-incidente__resumen-superior {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns:
+    minmax(190px, 1fr)
+    minmax(190px, 1fr)
+    minmax(220px, 1.1fr)
+    minmax(168px, 0.72fr)
+    minmax(168px, 0.72fr);
   gap: 18px;
   margin-bottom: 22px;
 }
@@ -93,6 +111,10 @@
 .detalle-incidente__tarjeta-resumen strong {
   font-size: 15px;
   color: #111827;
+}
+
+.detalle-incidente__tarjeta-resumen--compacta {
+  border-radius: 16px;
 }
 
 /* ── Fechas ─────────────────────────────────────────────── */
@@ -446,6 +468,11 @@
 }
 
 @media (max-width: 768px) {
+  .detalle-incidente__encabezado-titulo {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .detalle-incidente__resumen-superior,
   .detalle-incidente__grid-edicion {
     grid-template-columns: 1fr;
