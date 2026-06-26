@@ -6,6 +6,7 @@ import ContenedorPagina from '../../componentes/layout/ContenedorPagina/Contened
 import EtiquetaRol from '../../componentes/layout/EtiquetaRol/EtiquetaRol';
 import SelectBuscable from '../../componentes/incidentes/SelectBuscable/SelectBuscable';
 import EstadoIncidente from '../../componentes/incidentes/EstadoIncidente/EstadoIncidente';
+import Paginacion from '../../componentes/ui/Paginacion/Paginacion';
 
 import incidenteServicio from '../../services/incidenteServicio';
 import masivoServicio from '../../services/masivoServicio';
@@ -264,7 +265,7 @@ function Masivos() {
   const irAlInicioDelListado = () => {
     if (listadoRef.current) {
       listadoRef.current.scrollIntoView({
-        behavior: 'smooth',
+        behavior: 'auto',
         block: 'start',
       });
     }
@@ -316,20 +317,8 @@ function Masivos() {
     return masivos.slice(inicio, fin);
   }, [masivos, paginaActual]);
 
-  const irPaginaAnterior = () => {
-    if (paginaActual === 1) return;
-
-    setPaginaActual((prev) => prev - 1);
-
-    setTimeout(() => {
-      irAlInicioDelListado();
-    }, 50);
-  };
-
-  const irPaginaSiguiente = () => {
-    if (paginaActual === totalPaginas) return;
-
-    setPaginaActual((prev) => prev + 1);
+  const cambiarPagina = (pagina) => {
+    setPaginaActual(pagina);
 
     setTimeout(() => {
       irAlInicioDelListado();
@@ -535,29 +524,13 @@ function Masivos() {
               </span>
 
               {!cargando && totalPaginas > 1 && (
-                <div className="masivos__paginacion-mini">
-                  <button
-                    type="button"
-                    onClick={irPaginaAnterior}
-                    disabled={paginaActual === 1}
-                  >
-                    ←
-                  </button>
-
-                  <span>
-                    {paginaActual}/{totalPaginas}
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={irPaginaSiguiente}
-                    disabled={paginaActual === totalPaginas}
-                  >
-                    →
-                  </button>
-                </div>
-              )}
-            </div>
+                <Paginacion
+                  paginaActual={paginaActual}
+                  totalPaginas={totalPaginas}
+                  onCambiarPagina={cambiarPagina}
+                  className="masivos__paginacion-mini"
+                />
+              )}            </div>
           </div>
 
           {cargando ? (

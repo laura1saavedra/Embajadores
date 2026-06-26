@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import SelectBuscable from '../../../../componentes/incidentes/SelectBuscable/SelectBuscable';
+import Paginacion from '../../../../componentes/ui/Paginacion/Paginacion';
 import { useAuth } from '../../../../context/AuthContext';
 import configuracionServicio from '../../../../services/configuracionServicio';
 
@@ -51,7 +52,7 @@ const obtenerModuloPermiso = (nombrePermiso = '') => {
 
   if (permisoNormalizado.includes('configuracion')) {
     return {
-      nombre: 'Configuracion',
+      nombre: 'Configuración',
       clase: 'configuracion',
     };
   }
@@ -436,7 +437,7 @@ function Usuarios({ onVolver }) {
           setUsuarioContrasena(respuesta);
           setMensajeContrasena('');
           setMensajeExito(
-            'Usuario actualizado correctamente. Se genero una nueva contraseña temporal.'
+            'Usuario actualizado correctamente. Se generó una nueva contraseña temporal.'
           );
         } else {
           setMensajeExito('Usuario actualizado correctamente.');
@@ -618,7 +619,7 @@ function Usuarios({ onVolver }) {
         debeCambiarContrasena: true,
       });
 
-      setMensajeContrasena('El usuario debera cambiar la contraseña en el siguiente inicio de sesion.');
+      setMensajeContrasena('El usuario deberá cambiar la contraseña en el siguiente inicio de sesión.');
       setUsuarioAcceso((estadoActual) => ({
         ...estadoActual,
         debeCambiarContrasena: true,
@@ -868,7 +869,7 @@ function Usuarios({ onVolver }) {
               onClick={onVolver}
               aria-label="Volver"
             >
-              ←
+              &larr;
             </button>
 
             <div className="usuarios__titulo">
@@ -932,7 +933,7 @@ function Usuarios({ onVolver }) {
                         setBusqueda('');
                         setPagina(1);
                       }}
-                      aria-label="Limpiar busqueda"
+                      aria-label="Limpiar búsqueda"
                     >
                       ×
                     </button>
@@ -948,29 +949,13 @@ function Usuarios({ onVolver }) {
                 </button>
 
                 {totalPaginas > 1 && (
-                  <div className="usuarios__paginacion-mini usuarios__paginacion-mini--tabla">
-                    <button
-                      type="button"
-                      onClick={() => setPagina((prev) => Math.max(prev - 1, 1))}
-                      disabled={pagina === 1}
-                    >
-                      ←
-                    </button>
-
-                    <span>{pagina}/{totalPaginas}</span>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPagina((prev) => Math.min(prev + 1, totalPaginas))
-                      }
-                      disabled={pagina === totalPaginas}
-                    >
-                      →
-                    </button>
-                  </div>
-                )}
-              </div>
+                  <Paginacion
+                    paginaActual={pagina}
+                    totalPaginas={totalPaginas}
+                    onCambiarPagina={setPagina}
+                    className="usuarios__paginacion-mini usuarios__paginacion-mini--tabla"
+                  />
+                )}              </div>
             </div>
 
             <div className="usuarios__tabla-contenedor">
@@ -1093,7 +1078,7 @@ function Usuarios({ onVolver }) {
                         setBusquedaRol('');
                         setPaginaRoles(1);
                       }}
-                      aria-label="Limpiar busqueda de roles"
+                      aria-label="Limpiar búsqueda de roles"
                     >
                       ×
                     </button>
@@ -1110,33 +1095,13 @@ function Usuarios({ onVolver }) {
                 </button>
 
                 {totalPaginasRoles > 1 && (
-                  <div className="usuarios__paginacion-mini usuarios__paginacion-mini--roles">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPaginaRoles((prev) => Math.max(prev - 1, 1))
-                      }
-                      disabled={paginaRoles === 1}
-                    >
-                      ←
-                    </button>
-
-                    <span>{paginaRoles}/{totalPaginasRoles}</span>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPaginaRoles((prev) =>
-                          Math.min(prev + 1, totalPaginasRoles)
-                        )
-                      }
-                      disabled={paginaRoles === totalPaginasRoles}
-                    >
-                      →
-                    </button>
-                  </div>
-                )}
-              </div>
+                  <Paginacion
+                    paginaActual={paginaRoles}
+                    totalPaginas={totalPaginasRoles}
+                    onCambiarPagina={setPaginaRoles}
+                    className="usuarios__paginacion-mini usuarios__paginacion-mini--roles"
+                  />
+                )}              </div>
             </div>
 
             <div className="usuarios__tabla-contenedor">
@@ -1259,7 +1224,7 @@ function Usuarios({ onVolver }) {
             onClick={abrirListado}
             aria-label="Volver a roles"
           >
-            ←
+            &larr;
           </button>
 
           <div className="usuarios__form-titulo">
@@ -1419,7 +1384,7 @@ function Usuarios({ onVolver }) {
             onClick={abrirListado}
             aria-label="Volver a usuarios"
           >
-            ←
+            &larr;
           </button>
 
           <div className="usuarios__form-titulo">
@@ -1679,7 +1644,7 @@ function Usuarios({ onVolver }) {
                   >
                     <strong>Olvidó su contraseña</strong>
                     <span>
-                      Despues de entregar la contraseña temporal, obliga al usuario a cambiarla en el siguiente inicio de sesion.
+                      Después de entregar la contraseña temporal, obliga al usuario a cambiarla en el siguiente inicio de sesión.
                     </span>
                   </button>
                 )}
@@ -1689,7 +1654,7 @@ function Usuarios({ onVolver }) {
                   <p>
                     {usuarioAcceso.activo
                       ? 'Desactiva el usuario si no debe ingresar temporalmente a la plataforma.'
-                      : 'Activa el usuario para permitirle iniciar sesion nuevamente.'}
+                      : 'Activa el usuario para permitirle iniciar sesión nuevamente.'}
                   </p>
 
                   <button
@@ -1713,8 +1678,8 @@ function Usuarios({ onVolver }) {
                 <div className="usuarios__modal-icono">OK</div>
                 <h2>Contraseña temporal creada</h2>
                 <p>
-                  La contraseña se genero automaticamente. Copiala y compartela
-                  con el usuario para que pueda iniciar sesion en la plataforma.
+                  La contraseña se generó automáticamente. Cópiala y compártela
+                  con el usuario para que pueda iniciar sesión en la plataforma.
                 </p>
 
                 {mensajeContrasena && (
@@ -1733,7 +1698,7 @@ function Usuarios({ onVolver }) {
 
                 <div className="usuarios__info">
                   <span>i</span>
-                  <p>Despues de entregar la contraseña temporal, obliga al usuario a cambiarla en el siguiente inicio de sesion.</p>
+                  <p>Después de entregar la contraseña temporal, obliga al usuario a cambiarla en el siguiente inicio de sesión.</p>
                 </div>
 
               </div>
@@ -1800,8 +1765,8 @@ function Usuarios({ onVolver }) {
 
             <h2>Usuario creado con exito</h2>
             <p>
-              La contraseña se genero automaticamente. Copiala y compartela
-              con el usuario para que pueda iniciar sesion en la plataforma.
+              La contraseña se generó automáticamente. Cópiala y compártela
+              con el usuario para que pueda iniciar sesión en la plataforma.
             </p>
 
             <label>Contraseña temporal</label>
@@ -1820,7 +1785,7 @@ function Usuarios({ onVolver }) {
 
             <div className="usuarios__info">
               <span>i</span>
-              <p>El usuario debera cambiar esta contraseña en su primer inicio de sesion.</p>
+              <p>El usuario deberá cambiar esta contraseña en su primer inicio de sesión.</p>
             </div>
 
             <button

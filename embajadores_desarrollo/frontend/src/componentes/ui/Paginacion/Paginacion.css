@@ -1,0 +1,71 @@
+.paginacion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.paginacion[class] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.paginacion .paginacion__control,
+.paginacion .paginacion__pagina {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #4b5563;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: none;
+}
+
+.paginacion .paginacion__control {
+  min-width: 24px;
+  padding: 0 4px;
+  color: #6b7280;
+  font-size: 1.35rem;
+}
+
+.paginacion .paginacion__pagina--activa {
+  background: #e30613;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.paginacion .paginacion__control:hover:not(:disabled),
+.paginacion .paginacion__pagina:hover:not(.paginacion__pagina--activa) {
+  background: #fff1f2;
+  color: #e30613;
+}
+
+.paginacion .paginacion__control:disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
+  background: transparent;
+  opacity: 1;
+}
+
+.paginacion .paginacion__control:focus-visible,
+.paginacion .paginacion__pagina:focus-visible {
+  outline: 2px solid rgba(227, 6, 19, 0.35);
+  outline-offset: 2px;
+}

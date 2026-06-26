@@ -5,6 +5,7 @@ import LayoutPrincipal from '../../componentes/layout/LayoutPrincipal/LayoutPrin
 import ContenedorPagina from '../../componentes/layout/ContenedorPagina/ContenedorPagina';
 import SelectBuscable from '../../componentes/incidentes/SelectBuscable/SelectBuscable';
 import EstadoIncidente from '../../componentes/incidentes/EstadoIncidente/EstadoIncidente';
+import Paginacion from '../../componentes/ui/Paginacion/Paginacion';
 import { useAuth } from '../../context/AuthContext';
 import { PERMISOS, usuarioTienePermiso } from '../../utils/permisos';
 
@@ -107,7 +108,7 @@ function DetalleMasivo() {
   const irAlInicioDeTabla = () => {
     if (tablaRef.current) {
       tablaRef.current.scrollIntoView({
-        behavior: 'smooth',
+        behavior: 'auto',
         block: 'start',
       });
     }
@@ -159,20 +160,8 @@ function DetalleMasivo() {
     setPaginaActual(1);
   };
 
-  const irPaginaAnterior = () => {
-    if (paginaActual === 1) return;
-
-    setPaginaActual((prev) => prev - 1);
-
-    setTimeout(() => {
-      irAlInicioDeTabla();
-    }, 50);
-  };
-
-  const irPaginaSiguiente = () => {
-    if (paginaActual === totalPaginas) return;
-
-    setPaginaActual((prev) => prev + 1);
+  const cambiarPagina = (pagina) => {
+    setPaginaActual(pagina);
 
     setTimeout(() => {
       irAlInicioDeTabla();
@@ -422,29 +411,13 @@ function DetalleMasivo() {
               </div>
 
               {!cargando && totalPaginas > 1 && (
-                <div className="detalle-masivo__paginacion-mini">
-                  <button
-                    type="button"
-                    onClick={irPaginaAnterior}
-                    disabled={paginaActual === 1}
-                  >
-                    ←
-                  </button>
-
-                  <span>
-                    {paginaActual}/{totalPaginas}
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={irPaginaSiguiente}
-                    disabled={paginaActual === totalPaginas}
-                  >
-                    →
-                  </button>
-                </div>
-              )}
-            </div>
+                <Paginacion
+                  paginaActual={paginaActual}
+                  totalPaginas={totalPaginas}
+                  onCambiarPagina={cambiarPagina}
+                  className="detalle-masivo__paginacion-mini"
+                />
+              )}            </div>
           </div>
 
           <div className="detalle-masivo__tabla-contenedor">

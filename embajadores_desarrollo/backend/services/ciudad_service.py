@@ -8,7 +8,6 @@ Permite listar ciudades con sus CAVs asociados, crear, actualizar y eliminar.
 import logging
 from typing import Optional, List, Tuple, Dict, Any
 
-from sqlalchemy import text
 from sqlalchemy.orm import joinedload
 
 from db import get_db_session
@@ -33,11 +32,6 @@ def _normalizar_texto(valor: str) -> str:
 
 def asegurar_columnas_estado_ciudad(db) -> None:
     asegurar_columnas_estado_cav(db)
-    db.execute(text("""
-        ALTER TABLE "API_PROD".ciudad
-        ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE
-    """))
-    db.commit()
 
 
 def _cav_a_dict(cav: Cav) -> Dict[str, Any]:

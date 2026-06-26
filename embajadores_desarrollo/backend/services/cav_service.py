@@ -7,7 +7,7 @@ CRUD de CAVs.
 import logging
 from typing import Optional, List, Tuple, Dict, Any
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from sqlalchemy.orm import joinedload
 
 from db import get_db_session
@@ -15,6 +15,8 @@ from models import Cav, Ciudad, Incidente
 
 
 logger = logging.getLogger(__name__)
+ESQUEMA_BD = "API_PROD"
+_COLUMNAS_VERIFICADAS = set()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -25,28 +27,86 @@ def _normalizar_nombre(nombre: str) -> str:
     return " ".join(nombre.strip().split())
 
 
-def asegurar_columnas_detalle_cav(db) -> None:
-    db.execute(text("""
-        ALTER TABLE "API_PROD".cav
-        ADD COLUMN IF NOT EXISTS direccion VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS nombre_jefe VARCHAR(150),
-        ADD COLUMN IF NOT EXISTS nombre_supervisor VARCHAR(150),
-        ADD COLUMN IF NOT EXISTS numero_terminales INTEGER
-    """))
+def _columnas_faltantes(db, tabla: str, columnas: Dict[str, str]) -> List[str]:
+    pendientes = [
+        columna
+        for columna in columnas
+        if (tabla, columna) not in _COLUMNAS_VERIFICADAS
+    ]
+
+    if not pendientes:
+        return []
+
+    consulta = text("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = :schema
+              AND table_name = :table
+              AND column_name IN :columns
+        """).bindparams(bindparam("columns", expanding=True))
+
+    existentes = db.execute(
+        consulta,
+        {
+            "schema": ESQUEMA_BD,
+            "table": tabla,
+            "columns": pendientes,
+        },
+    ).scalars().all()
+
+    for columna in existentes:
+        _COLUMNAS_VERIFICADAS.add((tabla, columna))
+
+    return [
+        columna
+        for columna in pendientes
+        if (tabla, columna) not in _COLUMNAS_VERIFICADAS
+    ]
+
+
+def _asegurar_columnas(db, tabla: str, columnas: Dict[str, str]) -> None:
+    faltantes = _columnas_faltantes(db, tabla, columnas)
+
+    if not faltantes:
+        return
+
+    definiciones = ",\n        ".join(
+        f"ADD COLUMN IF NOT EXISTS {columna} {columnas[columna]}"
+        for columna in faltantes
+    )
+
+    db.execute(text(f'ALTER TABLE "{ESQUEMA_BD}".{tabla}\n        {definiciones}'))
     db.commit()
+
+    for columna in faltantes:
+        _COLUMNAS_VERIFICADAS.add((tabla, columna))
+
+
+def asegurar_columnas_detalle_cav(db) -> None:
+    _asegurar_columnas(
+        db,
+        "cav",
+        {
+            "direccion": "VARCHAR(255)",
+            "nombre_jefe": "VARCHAR(150)",
+            "nombre_supervisor": "VARCHAR(150)",
+            "numero_terminales": "INTEGER",
+        },
+    )
 
 
 def asegurar_columnas_estado_cav(db) -> None:
     asegurar_columnas_detalle_cav(db)
-    db.execute(text("""
-        ALTER TABLE "API_PROD".ciudad
-        ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE
-    """))
-    db.execute(text("""
-        ALTER TABLE "API_PROD".cav
-        ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE
-    """))
-    db.commit()
+    _asegurar_columnas(
+        db,
+        "ciudad",
+        {"activo": "BOOLEAN NOT NULL DEFAULT TRUE"},
+    )
+    _asegurar_columnas(
+        db,
+        "cav",
+        {"activo": "BOOLEAN NOT NULL DEFAULT TRUE"},
+    )
 
 
 def _normalizar_texto(valor: Optional[str]) -> Optional[str]:

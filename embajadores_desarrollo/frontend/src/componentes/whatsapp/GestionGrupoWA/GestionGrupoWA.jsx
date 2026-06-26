@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import whatsappServicio from '../../../services/whatsappServicio';
+import Paginacion from '../../ui/Paginacion/Paginacion';
 import './GestionGrupoWA.css';
 
 const formatearNumero = (num) => {
@@ -415,17 +416,13 @@ function GestionGrupoWA({ onCerrar, jid, nombre = '' }) {
                 </div>
 
                 {totalPaginas > 1 && (
-                  <div className="gestion-grupo-wa__paginacion">
-                    <button className="gestion-grupo-wa__boton gestion-grupo-wa__boton--ghost" onClick={() => setPagina((p) => Math.max(1, p - 1))} disabled={pagina === 1}>
-                      ← Anterior
-                    </button>
-                    <span className="gestion-grupo-wa__pagina-info">Página {pagina} de {totalPaginas}</span>
-                    <button className="gestion-grupo-wa__boton gestion-grupo-wa__boton--ghost" onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas}>
-                      Siguiente →
-                    </button>
-                  </div>
-                )}
-              </div>
+                  <Paginacion
+                    paginaActual={pagina}
+                    totalPaginas={totalPaginas}
+                    onCambiarPagina={setPagina}
+                    className="gestion-grupo-wa__paginacion"
+                  />
+                )}              </div>
 
               {/* Gestionar */}
               <div className="gestion-grupo-wa__bloque">

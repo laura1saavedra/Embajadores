@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import LayoutPrincipal from '../../componentes/layout/LayoutPrincipal/LayoutPrincipal';
 import ContenedorPagina from '../../componentes/layout/ContenedorPagina/ContenedorPagina';
+import EtiquetaRol from '../../componentes/layout/EtiquetaRol/EtiquetaRol';
 import CrearGrupoWA from '../../componentes/whatsapp/CrearGrupoWA/CrearGrupoWA';
 import GestionGrupoWA from '../../componentes/whatsapp/GestionGrupoWA/GestionGrupoWA';
+import Paginacion from '../../componentes/ui/Paginacion/Paginacion';
 import incidenteServicio from '../../services/incidenteServicio';
 import './Contactos.css';
 
@@ -173,31 +175,11 @@ function Contactos() {
     return grupos.slice(inicio, fin);
   }, [grupos, paginaGrupos]);
 
-  const irPaginaAnteriorPersonas = () => {
-    if (paginaPersonas === 1) return;
-    setPaginaPersonas((prev) => prev - 1);
-  };
-
-  const irPaginaSiguientePersonas = () => {
-    if (paginaPersonas === totalPaginasPersonas) return;
-    setPaginaPersonas((prev) => prev + 1);
-  };
-
-  const irPaginaAnteriorGrupos = () => {
-    if (paginaGrupos === 1) return;
-    setPaginaGrupos((prev) => prev - 1);
-  };
-
-  const irPaginaSiguienteGrupos = () => {
-    if (paginaGrupos === totalPaginasGrupos) return;
-    setPaginaGrupos((prev) => prev + 1);
-  };
-
   return (
     <LayoutPrincipal>
       <ContenedorPagina>
         <section className="contactos__hero">
-          <span className="contactos__hero-etiqueta">Embajador/a</span>
+          <EtiquetaRol className="contactos__hero-etiqueta" />
 
           <h1 className="contactos__hero-titulo">
             Contactos <span>WhatsApp</span>
@@ -283,29 +265,12 @@ function Contactos() {
                   </div>
 
                   {totalPaginasPersonas > 1 && (
-                    <div className="contactos__paginacion">
-                      <button
-                        type="button"
-                        className="contactos__paginacion-boton"
-                        onClick={irPaginaAnteriorPersonas}
-                        disabled={paginaPersonas === 1}
-                      >
-                        ← Anterior
-                      </button>
-
-                      <span className="contactos__paginacion-info">
-                        {paginaPersonas} de {totalPaginasPersonas}
-                      </span>
-
-                      <button
-                        type="button"
-                        className="contactos__paginacion-boton"
-                        onClick={irPaginaSiguientePersonas}
-                        disabled={paginaPersonas === totalPaginasPersonas}
-                      >
-                        Siguiente →
-                      </button>
-                    </div>
+                    <Paginacion
+                      paginaActual={paginaPersonas}
+                      totalPaginas={totalPaginasPersonas}
+                      onCambiarPagina={setPaginaPersonas}
+                      className="contactos__paginacion"
+                    />
                   )}
                 </>
               )}
@@ -391,29 +356,12 @@ function Contactos() {
                   </div>
 
                   {totalPaginasGrupos > 1 && (
-                    <div className="contactos__paginacion">
-                      <button
-                        type="button"
-                        className="contactos__paginacion-boton"
-                        onClick={irPaginaAnteriorGrupos}
-                        disabled={paginaGrupos === 1}
-                      >
-                        ← Anterior
-                      </button>
-
-                      <span className="contactos__paginacion-info">
-                        {paginaGrupos} de {totalPaginasGrupos}
-                      </span>
-
-                      <button
-                        type="button"
-                        className="contactos__paginacion-boton"
-                        onClick={irPaginaSiguienteGrupos}
-                        disabled={paginaGrupos === totalPaginasGrupos}
-                      >
-                        Siguiente →
-                      </button>
-                    </div>
+                    <Paginacion
+                      paginaActual={paginaGrupos}
+                      totalPaginas={totalPaginasGrupos}
+                      onCambiarPagina={setPaginaGrupos}
+                      className="contactos__paginacion"
+                    />
                   )}
                 </>
               )}

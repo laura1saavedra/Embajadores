@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 
+import Paginacion from '../../../../componentes/ui/Paginacion/Paginacion';
 import configuracionServicio from '../../../../services/configuracionServicio';
 
 import './AplicacionesTipos.css';
@@ -831,39 +832,13 @@ function AplicacionesTipos({ onVolver }) {
                 </div>
 
                 {totalPaginasAplicaciones > 1 && (
-                  <div className="aplicaciones-tipos__paginacion-mini">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPaginaAplicaciones((prev) =>
-                          Math.max(prev - 1, 1)
-                        )
-                      }
-                      disabled={paginaAplicaciones === 1}
-                    >
-                      ←
-                    </button>
-
-                    <span>
-                      {paginaAplicaciones}/{totalPaginasAplicaciones}
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPaginaAplicaciones((prev) =>
-                          Math.min(prev + 1, totalPaginasAplicaciones)
-                        )
-                      }
-                      disabled={
-                        paginaAplicaciones === totalPaginasAplicaciones
-                      }
-                    >
-                      →
-                    </button>
-                  </div>
-                )}
-              </div>
+                  <Paginacion
+                    paginaActual={paginaAplicaciones}
+                    totalPaginas={totalPaginasAplicaciones}
+                    onCambiarPagina={setPaginaAplicaciones}
+                    className="aplicaciones-tipos__paginacion-mini"
+                  />
+                )}              </div>
             </div>
 
             <div className="aplicaciones-tipos__tabla-contenedor">
@@ -1065,35 +1040,13 @@ function AplicacionesTipos({ onVolver }) {
                 </div>
 
                 {totalPaginasTipos > 1 && (
-                  <div className="aplicaciones-tipos__paginacion-mini">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPaginaTipos((prev) => Math.max(prev - 1, 1))
-                      }
-                      disabled={paginaTipos === 1}
-                    >
-                      ←
-                    </button>
-
-                    <span>
-                      {paginaTipos}/{totalPaginasTipos}
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPaginaTipos((prev) =>
-                          Math.min(prev + 1, totalPaginasTipos)
-                        )
-                      }
-                      disabled={paginaTipos === totalPaginasTipos}
-                    >
-                      →
-                    </button>
-                  </div>
-                )}
-              </div>
+                  <Paginacion
+                    paginaActual={paginaTipos}
+                    totalPaginas={totalPaginasTipos}
+                    onCambiarPagina={setPaginaTipos}
+                    className="aplicaciones-tipos__paginacion-mini"
+                  />
+                )}              </div>
             </div>
 
             <div className="aplicaciones-tipos__tabla-contenedor">

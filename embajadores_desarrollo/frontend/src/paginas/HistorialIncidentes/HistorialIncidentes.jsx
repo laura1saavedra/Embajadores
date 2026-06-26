@@ -5,6 +5,7 @@ import ContenedorPagina from '../../componentes/layout/ContenedorPagina/Contened
 import EtiquetaRol from '../../componentes/layout/EtiquetaRol/EtiquetaRol';
 import FiltrosIncidentes from '../../componentes/incidentes/FiltrosIncidentes/FiltrosIncidentes';
 import ListaIncidentes from '../../componentes/incidentes/ListaIncidentes/ListaIncidentes';
+import Paginacion from '../../componentes/ui/Paginacion/Paginacion';
 import incidenteServicio from '../../services/incidenteServicio';
 
 import './HistorialIncidentes.css';
@@ -193,7 +194,7 @@ function HistorialIncidentes() {
   const irAlInicioDelListado = () => {
     if (listadoRef.current) {
       listadoRef.current.scrollIntoView({
-        behavior: 'smooth',
+        behavior: 'auto',
         block: 'start',
       });
     }
@@ -340,20 +341,8 @@ function HistorialIncidentes() {
     return incidentes.slice(inicio, fin);
   }, [incidentes, paginaActual]);
 
-  const irPaginaAnterior = () => {
-    if (paginaActual === 1) return;
-
-    setPaginaActual((prev) => prev - 1);
-
-    setTimeout(() => {
-      irAlInicioDelListado();
-    }, 50);
-  };
-
-  const irPaginaSiguiente = () => {
-    if (paginaActual === totalPaginas) return;
-
-    setPaginaActual((prev) => prev + 1);
+  const cambiarPagina = (pagina) => {
+    setPaginaActual(pagina);
 
     setTimeout(() => {
       irAlInicioDelListado();
@@ -461,31 +450,13 @@ function HistorialIncidentes() {
               </span>
 
               {!cargando && totalPaginas > 1 && (
-                <div className="historial-incidentes__paginacion-superior">
-                  <button
-                    type="button"
-                    className="historial-incidentes__boton-ver-mas historial-incidentes__boton-ver-mas--secundario"
-                    onClick={irPaginaAnterior}
-                    disabled={paginaActual === 1}
-                  >
-                    ← Anterior
-                  </button>
-
-                  <span className="historial-incidentes__paginacion-info">
-                    Página {paginaActual} de {totalPaginas}
-                  </span>
-
-                  <button
-                    type="button"
-                    className="historial-incidentes__boton-ver-mas"
-                    onClick={irPaginaSiguiente}
-                    disabled={paginaActual === totalPaginas}
-                  >
-                    Siguiente →
-                  </button>
-                </div>
-              )}
-            </div>
+                <Paginacion
+                  paginaActual={paginaActual}
+                  totalPaginas={totalPaginas}
+                  onCambiarPagina={cambiarPagina}
+                  className="historial-incidentes__paginacion-superior"
+                />
+              )}            </div>
           </div>
 
           {cargando ? (

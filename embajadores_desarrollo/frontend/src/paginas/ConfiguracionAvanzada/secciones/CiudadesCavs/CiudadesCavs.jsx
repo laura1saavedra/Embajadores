@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import Paginacion from '../../../../componentes/ui/Paginacion/Paginacion';
 import configuracionServicio from '../../../../services/configuracionServicio';
 
 import './CiudadesCavs.css';
@@ -842,35 +843,13 @@ function CiudadesCavs({ onVolver }) {
                 </div>
 
                 {totalPaginasCiudades > 1 && (
-                  <div className="ciudades-cavs__paginacion-mini">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPaginaCiudades((prev) => Math.max(prev - 1, 1))
-                      }
-                      disabled={paginaCiudades === 1}
-                    >
-                      ←
-                    </button>
-
-                    <span>
-                      {paginaCiudades}/{totalPaginasCiudades}
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPaginaCiudades((prev) =>
-                          Math.min(prev + 1, totalPaginasCiudades)
-                        )
-                      }
-                      disabled={paginaCiudades === totalPaginasCiudades}
-                    >
-                      →
-                    </button>
-                  </div>
-                )}
-              </div>
+                  <Paginacion
+                    paginaActual={paginaCiudades}
+                    totalPaginas={totalPaginasCiudades}
+                    onCambiarPagina={setPaginaCiudades}
+                    className="ciudades-cavs__paginacion-mini"
+                  />
+                )}              </div>
             </div>
 
             <div className="ciudades-cavs__tabla-contenedor">
