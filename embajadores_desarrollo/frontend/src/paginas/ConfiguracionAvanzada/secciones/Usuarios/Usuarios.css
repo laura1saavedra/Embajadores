@@ -208,7 +208,7 @@
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
   gap: 10px;
-  align-items: center;
+  align-items: start;
   margin: 0;
   padding: 10px 12px;
   border: 1px solid #ead7d9;
@@ -223,12 +223,57 @@
 .usuarios__permiso-opcion input {
   width: 16px;
   height: 16px;
+  margin-top: 2px;
   accent-color: #e30613;
 }
 
-.usuarios__permiso-opcion span {
+.usuarios__permiso-contenido {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.usuarios__permiso-nombre {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.usuarios__permiso-etiqueta {
+  width: fit-content;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: normal;
+}
+
+.usuarios__permiso-etiqueta--incidentes {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.usuarios__permiso-etiqueta--masivos {
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.usuarios__permiso-etiqueta--whatsapp {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.usuarios__permiso-etiqueta--configuracion {
+  border: 1px solid #ddd6fe;
+  background: #f5f3ff;
+  color: #6d28d9;
 }
 
 .usuarios__rol-form-acciones {
@@ -852,6 +897,13 @@
   padding: 0 4px 6px;
   margin: 0 -4px 16px;
   scrollbar-gutter: stable;
+}
+
+.usuarios__modal-scroll--sin-scroll {
+  overflow-y: visible;
+  padding-right: 0;
+  margin-right: 0;
+  scrollbar-gutter: auto;
 }
 
 .usuarios__access-section {

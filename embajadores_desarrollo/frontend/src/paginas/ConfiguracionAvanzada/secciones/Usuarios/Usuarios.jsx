@@ -23,6 +23,45 @@ const ELEMENTOS_POR_PAGINA = 4;
 const ROLES_POR_PAGINA = 2;
 const DOMINIOS_HITSS_PERMITIDOS = ['@hitss.com'];
 
+const normalizarTexto = (texto = '') =>
+  texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const obtenerModuloPermiso = (nombrePermiso = '') => {
+  const permisoNormalizado = normalizarTexto(nombrePermiso);
+
+  if (permisoNormalizado.includes('masivo')) {
+    return {
+      nombre: 'Incidentes masivos',
+      clase: 'masivos',
+    };
+  }
+
+  if (
+    permisoNormalizado.includes('contactos wa') ||
+    permisoNormalizado.includes('whatsapp')
+  ) {
+    return {
+      nombre: 'WhatsApp',
+      clase: 'whatsapp',
+    };
+  }
+
+  if (permisoNormalizado.includes('configuracion')) {
+    return {
+      nombre: 'Configuracion',
+      clase: 'configuracion',
+    };
+  }
+
+  return {
+    nombre: 'Incidentes',
+    clase: 'incidentes',
+  };
+};
+
 const obtenerClaseBadgeRol = (nombreRol = '') => {
   const rolNormalizado = nombreRol.toLowerCase();
 
@@ -559,7 +598,7 @@ function Usuarios({ onVolver }) {
 
       setUsuarioAcceso(respuesta);
       setVistaAcceso('recuperacion');
-      setMensajeContrasena('Contraseña temporal generada. Copiala y compartela con el usuario.');
+      setMensajeContrasena('');
       await cargarDatos();
     } catch (error) {
       setMensajeContrasena(error.message || 'No fue posible generar la contraseña temporal.');
@@ -1307,22 +1346,39 @@ function Usuarios({ onVolver }) {
                 <legend>Permisos</legend>
 
                 <div className="usuarios__permisos-grid">
-                  {permisos.map((permiso) => (
-                    <label
-                      key={permiso.idPermiso}
-                      className="usuarios__permiso-opcion"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={rolForm.permisosIds.includes(
-                          Number(permiso.idPermiso)
-                        )}
-                        onChange={() => alternarPermisoRol(permiso.idPermiso)}
-                        disabled={guardando}
-                      />
-                      <span>{permiso.nombrePermiso}</span>
-                    </label>
-                  ))}
+                  {permisos.map((permiso) => {
+                    const moduloPermiso = obtenerModuloPermiso(
+                      permiso.nombrePermiso
+                    );
+
+                    return (
+                      <label
+                        key={permiso.idPermiso}
+                        className="usuarios__permiso-opcion"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={rolForm.permisosIds.includes(
+                            Number(permiso.idPermiso)
+                          )}
+                          onChange={() =>
+                            alternarPermisoRol(permiso.idPermiso)
+                          }
+                          disabled={guardando}
+                        />
+                        <span className="usuarios__permiso-contenido">
+                          <span className="usuarios__permiso-nombre">
+                            {permiso.nombrePermiso}
+                          </span>
+                          <span
+                            className={`usuarios__permiso-etiqueta usuarios__permiso-etiqueta--${moduloPermiso.clase}`}
+                          >
+                            {moduloPermiso.nombre}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               </fieldset>
             </div>
@@ -1596,14 +1652,16 @@ function Usuarios({ onVolver }) {
       {usuarioAcceso && (
         <div className="usuarios__modal-fondo">
           <div className="usuarios__modal usuarios__modal--acceso">
-            <button
-              type="button"
-              className="usuarios__modal-cerrar"
-              onClick={cerrarModalAcceso}
-              aria-label="Cerrar"
-            >
-              x
-            </button>
+            {vistaAcceso !== 'recuperacion' && (
+              <button
+                type="button"
+                className="usuarios__modal-cerrar"
+                onClick={cerrarModalAcceso}
+                aria-label="Cerrar"
+              >
+                x
+              </button>
+            )}
 
             <h2>Gestionar acceso</h2>
             <p>
@@ -1651,19 +1709,7 @@ function Usuarios({ onVolver }) {
                 )}
               </div>
             ) : (
-              <div className="usuarios__modal-scroll">
-                <button
-                  type="button"
-                  className="usuarios__volver usuarios__volver--modal"
-                  onClick={() => {
-                    setVistaAcceso('menu');
-                    setMensajeContrasena('');
-                  }}
-                  aria-label="Volver a gestionar acceso"
-                >
-                  ←
-                </button>
-
+              <div className="usuarios__modal-scroll usuarios__modal-scroll--sin-scroll">
                 <div className="usuarios__modal-icono">OK</div>
                 <h2>Contraseña temporal creada</h2>
                 <p>
@@ -1690,26 +1736,20 @@ function Usuarios({ onVolver }) {
                   <p>Despues de entregar la contraseña temporal, obliga al usuario a cambiarla en el siguiente inicio de sesion.</p>
                 </div>
 
-                <button
-                  type="button"
-                  className="usuarios__boton-cambio usuarios__boton-ancho"
-                  onClick={forzarCambioContrasena}
-                  disabled={guardando || usuarioAcceso.debeCambiarContrasena}
-                >
-                  {usuarioAcceso.debeCambiarContrasena
-                    ? 'Cambio obligatorio activado'
-                    : 'Obligar cambio en el siguiente inicio de sesión'}
-                </button>
-
               </div>
             )}
 
             <button
               type="button"
-              className="usuarios__modal-boton"
-              onClick={cerrarModalAccesoForzado}
+              className={vistaAcceso === 'recuperacion' ? 'usuarios__boton-cambio usuarios__boton-ancho' : 'usuarios__modal-boton'}
+              onClick={vistaAcceso === 'recuperacion' ? forzarCambioContrasena : cerrarModalAccesoForzado}
+              disabled={vistaAcceso === 'recuperacion' && (guardando || usuarioAcceso.debeCambiarContrasena)}
             >
-              Cerrar
+              {vistaAcceso === 'recuperacion'
+                ? usuarioAcceso.debeCambiarContrasena
+                  ? 'Cambio obligatorio activado'
+                  : 'Obligar cambio en el siguiente inicio de sesión'
+                : 'Cerrar'}
             </button>
 
             {mostrarAvisoCierreAcceso && (
