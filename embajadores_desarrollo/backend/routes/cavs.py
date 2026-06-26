@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from schemas.cav_schemas import (
     CavCrear,
     CavActualizar,
+    CavEstadoActualizar,
 )
 from services.cav_service import CavService
 
@@ -20,17 +21,48 @@ from services.cav_service import CavService
 cavs_router = APIRouter()
 
 
+def _texto_limpio(valor: Optional[str]) -> Optional[str]:
+    if valor is None:
+        return None
+
+    texto = valor.strip()
+    return texto or None
+
+
 @cavs_router.get("/")
 def listar_cavs(
     ciudad_id: Optional[int] = Query(None, description="Filtrar por ciudad"),
+    solo_activos: bool = Query(False, description="Retornar solo CAVs activos"),
 ):
     datos, error = CavService.listar_cavs(
-        ciudad_id=ciudad_id
+        ciudad_id=ciudad_id,
+        solo_activos=solo_activos,
     )
 
     if error:
         return JSONResponse(
             status_code=500,
+            content={"error": error}
+        )
+
+    return datos
+
+
+@cavs_router.patch("/{id_cav}/estado")
+def cambiar_estado_cav(
+    id_cav: int,
+    body: CavEstadoActualizar,
+):
+    datos, error = CavService.cambiar_estado_cav(
+        id_cav=id_cav,
+        activo=body.activo,
+    )
+
+    if error:
+        codigo = 404 if "no encontrado" in error.lower() else 400
+
+        return JSONResponse(
+            status_code=codigo,
             content={"error": error}
         )
 
@@ -57,6 +89,9 @@ def obtener_cav(id_cav: int):
 @cavs_router.post("/", status_code=201)
 def crear_cav(body: CavCrear):
     nombre = body.nombre_cav.strip()
+    direccion = _texto_limpio(body.direccion)
+    nombre_jefe = _texto_limpio(body.nombre_jefe)
+    nombre_supervisor = _texto_limpio(body.nombre_supervisor)
 
     if not nombre:
         return JSONResponse(
@@ -64,9 +99,19 @@ def crear_cav(body: CavCrear):
             content={"error": "El nombre del CAV es obligatorio"}
         )
 
+    if body.numero_terminales is not None and body.numero_terminales <= 0:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "El numero de terminales debe ser mayor a cero"}
+        )
+
     datos, error = CavService.crear_cav(
         nombre_cav=nombre,
         ciudad_id=body.ciudad_id,
+        direccion=direccion,
+        nombre_jefe=nombre_jefe,
+        nombre_supervisor=nombre_supervisor,
+        numero_terminales=body.numero_terminales,
     )
 
     if error:
@@ -83,7 +128,14 @@ def actualizar_cav(
     id_cav: int,
     body: CavActualizar,
 ):
-    if body.nombre_cav is None and body.ciudad_id is None:
+    if (
+        body.nombre_cav is None
+        and body.ciudad_id is None
+        and body.direccion is None
+        and body.nombre_jefe is None
+        and body.nombre_supervisor is None
+        and body.numero_terminales is None
+    ):
         return JSONResponse(
             status_code=400,
             content={"error": "Debe enviar al menos un campo para actualizar"}
@@ -95,6 +147,12 @@ def actualizar_cav(
         return JSONResponse(
             status_code=400,
             content={"error": "El nombre del CAV es obligatorio"}
+        )
+
+    if body.numero_terminales is not None and body.numero_terminales <= 0:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "El numero de terminales debe ser mayor a cero"}
         )
 
     datos_actuales, error_actual = CavService.obtener_cav(id_cav)
@@ -111,6 +169,26 @@ def actualizar_cav(
         id_cav=id_cav,
         nombre_cav=nombre if nombre is not None else datos_actuales["nombre_cav"],
         ciudad_id=body.ciudad_id if body.ciudad_id is not None else datos_actuales["ciudad_id"],
+        direccion=(
+            _texto_limpio(body.direccion)
+            if body.direccion is not None
+            else datos_actuales.get("direccion")
+        ),
+        nombre_jefe=(
+            _texto_limpio(body.nombre_jefe)
+            if body.nombre_jefe is not None
+            else datos_actuales.get("nombre_jefe")
+        ),
+        nombre_supervisor=(
+            _texto_limpio(body.nombre_supervisor)
+            if body.nombre_supervisor is not None
+            else datos_actuales.get("nombre_supervisor")
+        ),
+        numero_terminales=(
+            body.numero_terminales
+            if body.numero_terminales is not None
+            else datos_actuales.get("numero_terminales")
+        ),
     )
 
     if error:

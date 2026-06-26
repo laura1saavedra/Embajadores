@@ -282,6 +282,41 @@
   font-weight: 800;
 }
 
+.ciudades-cavs__nombre-con-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ciudades-cavs__estado {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.ciudades-cavs__estado--activo {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.ciudades-cavs__estado--inactivo {
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+  color: #b91c1c;
+}
+
+.ciudades-cavs__estado--cav {
+  width: fit-content;
+}
+
 .ciudades-cavs__fila-expandida td {
   background: #fffdfd;
   padding: 12px 18px 18px;
@@ -319,6 +354,30 @@
   font-weight: 700;
 }
 
+.ciudades-cavs__cav-resumen {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ciudades-cavs__cav-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ciudades-cavs__cav-detalle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 14px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 /* ─────────────────── BOTONES TABLA ───────────────────── */
 
 .ciudades-cavs__acciones {
@@ -343,6 +402,17 @@
   color: #e30613 !important;
   border-color: #f3c8cd !important;
   background: #fff5f6 !important;
+}
+
+.ciudades-cavs__accion-estado {
+  color: #6e2c2f !important;
+  border-color: #f3c8cd !important;
+  background: #ffffff !important;
+}
+
+.ciudades-cavs__accion-estado:hover:not(:disabled) {
+  background: #fff5f6 !important;
+  color: #e30613 !important;
 }
 
 .ciudades-cavs__accion-eliminar:hover {
@@ -394,6 +464,16 @@
   align-items: center;
   flex-wrap: wrap;
   margin-top: 8px;
+}
+
+.ciudades-cavs__form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+}
+
+.ciudades-cavs__form-columna {
+  min-width: 0;
 }
 
 .ciudades-cavs__acciones-form button {
@@ -478,6 +558,39 @@
   align-items: center;
 }
 
+.ciudades-cavs__cav-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ciudades-cavs__cav-input-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.ciudades-cavs__cav-input-wrap input {
+  width: 100%;
+  padding-right: 158px;
+}
+
+.ciudades-cavs__cav-etiqueta {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  max-width: 138px;
+  transform: translateY(-50%);
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .ciudades-cavs__cav-campo input {
   height: 44px;
   margin-bottom: 0;
@@ -530,6 +643,66 @@
 
 .ciudades-cavs__boton-agregar:disabled,
 .ciudades-cavs__boton-quitar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ciudades-cavs__info-cav {
+  padding: 14px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.ciudades-cavs__info-cav h3 {
+  margin: 0 0 12px;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.ciudades-cavs__info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ciudades-cavs__info-campo label {
+  margin-bottom: 8px;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.ciudades-cavs__info-campo input {
+  width: 100%;
+  height: 42px;
+  margin-bottom: 0;
+  border-radius: 8px;
+}
+
+.ciudades-cavs__info-guardar {
+  min-width: 154px;
+  height: 40px;
+  margin-top: 14px;
+  border: none;
+  border-radius: 12px;
+  padding: 0 16px;
+  background: linear-gradient(135deg, #e30613 0%, #ff2b3a 100%);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 8px 16px rgba(227, 6, 19, 0.16);
+  transition: all 0.2s ease;
+}
+
+.ciudades-cavs__info-guardar:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(227, 6, 19, 0.22);
+}
+
+.ciudades-cavs__info-guardar:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -628,6 +801,10 @@
     align-items: flex-start;
   }
 
+  .ciudades-cavs__cav-detalle {
+    grid-template-columns: 1fr;
+  }
+
   .ciudades-cavs__cavs-header {
     align-items: stretch;
     flex-direction: column;
@@ -635,5 +812,25 @@
 
   .ciudades-cavs__boton-agregar {
     width: 100%;
+  }
+
+  .ciudades-cavs__cav-input-wrap input {
+    padding-right: 14px;
+  }
+
+  .ciudades-cavs__cav-etiqueta {
+    position: static;
+    display: inline-flex;
+    width: fit-content;
+    margin-top: 8px;
+    transform: none;
+  }
+
+  .ciudades-cavs__info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ciudades-cavs__form-grid {
+    grid-template-columns: 1fr;
   }
 }

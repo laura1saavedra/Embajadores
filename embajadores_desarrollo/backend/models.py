@@ -24,6 +24,7 @@ class Ciudad(Base):
 
     id_ciudad = Column(Integer, primary_key=True, autoincrement=True)
     nombre_ciudad = Column(String(150), nullable=False)
+    activo = Column(Boolean, nullable=False, default=True)
 
     cavs = relationship("Cav", back_populates="ciudad", lazy="select")
 
@@ -40,6 +41,11 @@ class Cav(Base):
 
     id_cav = Column(Integer, primary_key=True, autoincrement=True)
     nombre_cav = Column(String(200), nullable=False)
+    direccion = Column(String(255), nullable=True)
+    nombre_jefe = Column(String(150), nullable=True)
+    nombre_supervisor = Column(String(150), nullable=True)
+    numero_terminales = Column(Integer, nullable=True)
+    activo = Column(Boolean, nullable=False, default=True)
     ciudad_id = Column(
         Integer,
         ForeignKey("API_PROD.ciudad.id_ciudad", ondelete="RESTRICT", onupdate="CASCADE"),

@@ -59,17 +59,28 @@ const normalizarTipoFalla = (tipo) => ({
 const normalizarCavSimple = (cav) => ({
   idCav: cav.id_cav,
   nombreCav: cav.nombre_cav,
+  activo: cav.activo !== false,
   ciudadId: cav.ciudad_id ?? null,
   ciudadNombre: cav.ciudad_nombre ?? '',
+  direccion: cav.direccion ?? '',
+  nombreJefe: cav.nombre_jefe ?? '',
+  nombreSupervisor: cav.nombre_supervisor ?? '',
+  numeroTerminales: cav.numero_terminales ?? '',
 });
 
 const normalizarCiudad = (ciudad) => ({
   idCiudad: ciudad.id_ciudad,
   nombreCiudad: ciudad.nombre_ciudad,
+  activo: ciudad.activo !== false,
   cavs: Array.isArray(ciudad.cavs)
     ? ciudad.cavs.map((cav) => ({
         idCav: cav.id_cav,
         nombreCav: cav.nombre_cav,
+        activo: cav.activo !== false,
+        direccion: cav.direccion ?? '',
+        nombreJefe: cav.nombre_jefe ?? '',
+        nombreSupervisor: cav.nombre_supervisor ?? '',
+        numeroTerminales: cav.numero_terminales ?? '',
       }))
     : [],
 });
@@ -290,7 +301,13 @@ class ConfiguracionServicio {
       `${config.endpoints.ciudades()}/completa`,
       {
         nombre_ciudad: nombreCiudad,
-        cavs,
+        cavs: cavs.map((cav) => ({
+          nombre_cav: cav.nombre,
+          direccion: cav.info.direccion,
+          nombre_jefe: cav.info.jefe,
+          nombre_supervisor: cav.info.supervisor,
+          numero_terminales: Number(cav.info.terminales),
+        })),
       }
     );
 
@@ -316,6 +333,15 @@ class ConfiguracionServicio {
     return data;
   }
 
+  async cambiarEstadoCiudad(idCiudad, activo) {
+    const { data } = await apiClient.patch(
+      `${config.endpoints.ciudades()}/${idCiudad}/estado`,
+      { activo: Boolean(activo) }
+    );
+
+    return normalizarCiudad(data);
+  }
+
   // ─────────────────────────────────────────────────────────────
   // CAVs
   // ─────────────────────────────────────────────────────────────
@@ -337,21 +363,35 @@ class ConfiguracionServicio {
     return normalizarCavSimple(data);
   }
 
-  async crearCav(nombreCav, ciudadId) {
+  async crearCav(nombreCav, ciudadId, detalle = {}) {
     const { data } = await apiClient.post(config.endpoints.cavs(), {
       nombre_cav: nombreCav,
       ciudad_id: Number(ciudadId),
+      direccion: detalle.direccion,
+      nombre_jefe: detalle.nombreJefe,
+      nombre_supervisor: detalle.nombreSupervisor,
+      numero_terminales:
+        detalle.numeroTerminales !== undefined
+          ? Number(detalle.numeroTerminales)
+          : undefined,
     });
 
     return normalizarCavSimple(data);
   }
 
-  async actualizarCav(idCav, nombreCav, ciudadId) {
+  async actualizarCav(idCav, nombreCav, ciudadId, detalle = {}) {
     const { data } = await apiClient.put(
       `${config.endpoints.cavs()}/${idCav}`,
       {
         nombre_cav: nombreCav,
         ciudad_id: Number(ciudadId),
+        direccion: detalle.direccion,
+        nombre_jefe: detalle.nombreJefe,
+        nombre_supervisor: detalle.nombreSupervisor,
+        numero_terminales:
+          detalle.numeroTerminales !== undefined
+            ? Number(detalle.numeroTerminales)
+            : undefined,
       }
     );
 
@@ -364,6 +404,15 @@ class ConfiguracionServicio {
     );
 
     return data;
+  }
+
+  async cambiarEstadoCav(idCav, activo) {
+    const { data } = await apiClient.patch(
+      `${config.endpoints.cavs()}/${idCav}/estado`,
+      { activo: Boolean(activo) }
+    );
+
+    return normalizarCavSimple(data);
   }
 
   // ─────────────────────────────────────────────────────────────

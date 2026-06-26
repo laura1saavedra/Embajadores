@@ -239,12 +239,16 @@ const prepararContacto = (datos) => ({
 
 class IncidenteServicio {
   async obtenerCiudades() {
-    const { data } = await apiClient.get(config.endpoints.ciudades());
+    const { data } = await apiClient.get(
+      `${config.endpoints.ciudades()}?solo_activos=true`
+    );
     return (data || []).map(normalizarCiudad);
   }
 
   async obtenerCavsPorCiudad(ciudadId) {
-    const { data } = await apiClient.get(config.endpoints.cavs(ciudadId));
+    const { data } = await apiClient.get(
+      `${config.endpoints.cavs(ciudadId)}&solo_activos=true`
+    );
     return (data || []).map(normalizarCav);
   }
 

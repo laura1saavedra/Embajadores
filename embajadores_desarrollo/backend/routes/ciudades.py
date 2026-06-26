@@ -5,13 +5,14 @@ Endpoints para consultar, crear, editar y eliminar ciudades.
 Se usan desde Configuración Avanzada.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from schemas.ciudad_schemas import (
     CiudadCrear,
     CiudadCompletaCrear,
     CiudadActualizar,
+    CiudadEstadoActualizar,
 )
 
 from services.ciudad_service import CiudadService
@@ -25,14 +26,38 @@ ciudades_router = APIRouter()
 # ─────────────────────────────────────────────────────────────
 
 @ciudades_router.get("/")
-def listar_ciudades():
+def listar_ciudades(
+    solo_activos: bool = Query(False, description="Retornar solo ciudades activas"),
+):
     datos, error = CiudadService.listar_ciudades(
-        incluir_cavs=True
+        incluir_cavs=True,
+        solo_activos=solo_activos,
     )
 
     if error:
         return JSONResponse(
             status_code=500,
+            content={"error": error}
+        )
+
+    return datos
+
+
+@ciudades_router.patch("/{id_ciudad}/estado")
+def cambiar_estado_ciudad(
+    id_ciudad: int,
+    body: CiudadEstadoActualizar,
+):
+    datos, error = CiudadService.cambiar_estado_ciudad(
+        id_ciudad=id_ciudad,
+        activo=body.activo,
+    )
+
+    if error:
+        codigo = 404 if "no encontrada" in error.lower() else 400
+
+        return JSONResponse(
+            status_code=codigo,
             content={"error": error}
         )
 
@@ -115,9 +140,15 @@ def crear_ciudad_completa(body: CiudadCompletaCrear):
         )
     
     cavs_validos = [
-        cav.strip()
+        {
+            "nombre_cav": cav.nombre_cav.strip(),
+            "direccion": cav.direccion.strip(),
+            "nombre_jefe": cav.nombre_jefe.strip(),
+            "nombre_supervisor": cav.nombre_supervisor.strip(),
+            "numero_terminales": cav.numero_terminales,
+        }
         for cav in body.cavs
-        if cav.strip()
+        if cav.nombre_cav.strip()
     ]
 
     if len(cavs_validos) == 0:
