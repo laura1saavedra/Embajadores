@@ -215,9 +215,8 @@ class AplicacionService:
 
                 aplicacion.activo = activo
 
-                if not activo:
-                    for servicio in aplicacion.servicios or []:
-                        servicio.activo = False
+                for servicio in aplicacion.servicios or []:
+                    servicio.activo = activo
 
                 db.commit()
                 db.refresh(aplicacion)

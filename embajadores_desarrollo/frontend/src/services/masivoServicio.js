@@ -16,6 +16,7 @@ const normalizarIncidenteDeCav = (i) => ({
 
   idAplicacionesAfectados: i.id_aplicaciones_afectados || null,
   aplicacionId: String(i.aplicacion_id || ''),
+  servicioId: String(i.servicio_id || ''),
   tipoFallaId: String(i.tipo_falla_id || ''),
 
   usuariosAfectados: i.usuarios_afectados ?? 0,
@@ -47,6 +48,9 @@ const normalizarMasivo = (m) => ({
 
   aplicacionId: String(m.aplicacion_id || ''),
   aplicacionNombre: m.nombre_aplicacion || '',
+
+  servicioId: String(m.servicio_id || ''),
+  servicioNombre: m.nombre_servicio || '',
 
   tipoFallaId: String(m.tipo_falla_id || ''),
   tipoFallaNombre: m.nombre_tipo_falla || '',
@@ -82,6 +86,10 @@ class MasivoServicio {
 
     if (filtros.aplicacionId) {
       params.append('aplicacion_id', filtros.aplicacionId);
+    }
+
+    if (filtros.servicioId) {
+      params.append('servicio_id', filtros.servicioId);
     }
 
     if (filtros.tipoFallaId) {

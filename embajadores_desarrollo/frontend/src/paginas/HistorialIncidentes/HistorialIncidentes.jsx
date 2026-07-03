@@ -11,6 +11,7 @@ import incidenteServicio from '../../services/incidenteServicio';
 import './HistorialIncidentes.css';
 
 const INCIDENTES_VISIBLES_INICIALES = 7;
+const ESTADO_HISTORIAL_STORAGE_KEY = 'embajadores.historialIncidentes.estado';
 
 // Fecha actual para filtros iniciales.
 
@@ -24,6 +25,8 @@ const obtenerFechaActual = () => {
   };
 };
 
+const esPrimerDiaDelMes = () => new Date().getDate() === 1;
+
 // Filtros iniciales.
 
 const crearFiltrosIniciales = () => {
@@ -35,11 +38,120 @@ const crearFiltrosIniciales = () => {
     ciudadId: '',
     cavId: '',
     aplicacionId: '',
+    servicioId: '',
     tipoFalla: '',
     anio: fechaActual.anio,
     mes: fechaActual.mes,
     dia: fechaActual.dia,
   };
+};
+
+const normalizarFiltrosGuardados = (filtrosGuardados = {}) => {
+  const filtros = {
+    ...crearFiltrosIniciales(),
+    ...filtrosGuardados,
+  };
+
+  if (!filtros.aplicacionId) {
+    filtros.servicioId = '';
+  }
+
+  return filtros;
+};
+
+const obtenerEstadoHistorialGuardado = () => {
+  try {
+    const raw = sessionStorage.getItem(ESTADO_HISTORIAL_STORAGE_KEY);
+
+    if (!raw) {
+      return null;
+    }
+
+    const estado = JSON.parse(raw);
+
+    return {
+      filtros: normalizarFiltrosGuardados(estado.filtros),
+      paginaActual: Number(estado.paginaActual) || 1,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const guardarEstadoHistorial = (filtros, paginaActual = 1) => {
+  try {
+    sessionStorage.setItem(
+      ESTADO_HISTORIAL_STORAGE_KEY,
+      JSON.stringify({
+        filtros: normalizarFiltrosGuardados(filtros),
+        paginaActual,
+      })
+    );
+  } catch {
+    // sessionStorage puede no estar disponible en algunos contextos.
+  }
+};
+
+const MESES = {
+  '01': 'Enero',
+  '02': 'Febrero',
+  '03': 'Marzo',
+  '04': 'Abril',
+  '05': 'Mayo',
+  '06': 'Junio',
+  '07': 'Julio',
+  '08': 'Agosto',
+  '09': 'Septiembre',
+  '10': 'Octubre',
+  '11': 'Noviembre',
+  '12': 'Diciembre',
+};
+
+const obtenerPeriodoMes = (filtrosActivos = {}) => {
+  if (!filtrosActivos.anio || !filtrosActivos.mes) {
+    return null;
+  }
+
+  return {
+    anio: Number(filtrosActivos.anio),
+    mes: Number(filtrosActivos.mes),
+    mesTexto: String(filtrosActivos.mes).padStart(2, '0'),
+  };
+};
+
+const obtenerPeriodoAnterior = (periodo) => {
+  if (!periodo) return null;
+
+  const esEnero = periodo.mes === 1;
+
+  return {
+    anio: esEnero ? periodo.anio - 1 : periodo.anio,
+    mes: esEnero ? 12 : periodo.mes - 1,
+    mesTexto: String(esEnero ? 12 : periodo.mes - 1).padStart(2, '0'),
+  };
+};
+
+const obtenerClavePeriodo = (periodo) =>
+  periodo ? `${periodo.anio}-${periodo.mesTexto}` : '';
+
+const formatearPeriodo = (periodo) => {
+  if (!periodo) return '';
+
+  return `${MESES[periodo.mesTexto]} de ${periodo.anio}`;
+};
+
+const crearMensajeCambioMes = (periodo, abiertosMesAnterior) => {
+  const periodoAnterior = obtenerPeriodoAnterior(periodo);
+  const etiquetaIncidentes =
+    abiertosMesAnterior === 1
+      ? '1 incidente abierto'
+      : `${abiertosMesAnterior} incidentes abiertos`;
+
+  if (abiertosMesAnterior > 0) {
+    return `Filtro actualizado a ${formatearPeriodo(periodo)}. El mes anterior (${formatearPeriodo(periodoAnterior)}) quedo con ${etiquetaIncidentes}.`;
+  }
+
+  return `Filtro actualizado a ${formatearPeriodo(periodo)}. El mes anterior (${formatearPeriodo(periodoAnterior)}) no dejo incidentes abiertos.`;
 };
 
 // Helpers.
@@ -65,6 +177,7 @@ const filtrarAplicacionesPorFiltros = (
   filtrosActivos = {}
 ) => {
   const aplicacionId = String(filtrosActivos.aplicacionId || '');
+  const servicioId = String(filtrosActivos.servicioId || '');
   const tipoFalla = normalizarTexto(filtrosActivos.tipoFalla);
   const busqueda = normalizarTexto(filtrosActivos.busqueda);
   const busquedaCoincideConId =
@@ -73,6 +186,10 @@ const filtrarAplicacionesPorFiltros = (
 
   return aplicaciones.filter((app) => {
     if (aplicacionId && String(app.aplicacionId) !== aplicacionId) {
+      return false;
+    }
+
+    if (servicioId && String(app.servicioId) !== servicioId) {
       return false;
     }
 
@@ -137,17 +254,28 @@ function HistorialIncidentes() {
   const [ciudades, setCiudades] = useState([]);
   const [cavsDisponibles, setCavsDisponibles] = useState([]);
   const [aplicaciones, setAplicaciones] = useState([]);
+  const [servicios, setServicios] = useState([]);
   const [tiposFalla, setTiposFalla] = useState([]);
 
-  const [filtros, setFiltros] = useState(crearFiltrosIniciales());
+  const estadoGuardadoInicial = useMemo(
+    () => obtenerEstadoHistorialGuardado(),
+    []
+  );
+
+  const [filtros, setFiltros] = useState(
+    estadoGuardadoInicial?.filtros || crearFiltrosIniciales()
+  );
 
   const [cargando, setCargando] = useState(true);
   const [cargandoFiltros, setCargandoFiltros] = useState(false);
 
   const [mensajeError, setMensajeError] = useState('');
+  const [mensajePeriodo, setMensajePeriodo] = useState('');
   const [filtrosVisibles, setFiltrosVisibles] = useState(false);
 
-  const [paginaActual, setPaginaActual] = useState(1);
+  const [paginaActual, setPaginaActual] = useState(
+    estadoGuardadoInicial?.paginaActual || 1
+  );
 
   const [resumen, setResumen] = useState({
     total: 0,
@@ -156,9 +284,23 @@ function HistorialIncidentes() {
   });
 
   const listadoRef = useRef(null);
+  const filtrosRef = useRef(crearFiltrosIniciales());
+  const periodoCalendarioRef = useRef(
+    obtenerClavePeriodo(obtenerPeriodoMes(crearFiltrosIniciales()))
+  );
+
+  useEffect(() => {
+    filtrosRef.current = filtros;
+  }, [filtros]);
 
   useEffect(() => {
     cargarInformacionInicial();
+
+    const intervalo = setInterval(() => {
+      aplicarCambioMesAutomatico();
+    }, 60000);
+
+    return () => clearInterval(intervalo);
   }, []);
 
   useEffect(() => {
@@ -205,17 +347,21 @@ function HistorialIncidentes() {
       setCargando(true);
       setMensajeError('');
 
-      const filtrosIniciales = crearFiltrosIniciales();
+      const estadoGuardado = obtenerEstadoHistorialGuardado();
+      const filtrosIniciales = estadoGuardado?.filtros || crearFiltrosIniciales();
+      const paginaGuardada = estadoGuardado?.paginaActual || 1;
 
       const [
         incidentesRespuesta,
         ciudadesRespuesta,
         aplicacionesRespuesta,
+        serviciosRespuesta,
         tiposFallaRespuesta,
       ] = await Promise.all([
         incidenteServicio.listarIncidentes(filtrosIniciales),
         incidenteServicio.obtenerCiudades(),
         incidenteServicio.obtenerAplicaciones(),
+        incidenteServicio.obtenerServicios(),
         incidenteServicio.obtenerTiposFalla(),
       ]);
 
@@ -228,10 +374,16 @@ function HistorialIncidentes() {
       setIncidentes(incidentesIndividuales);
       setCiudades(ciudadesRespuesta);
       setAplicaciones(aplicacionesRespuesta);
+      setServicios(serviciosRespuesta);
       setTiposFalla(tiposFallaRespuesta);
 
       actualizarResumen(incidentesIndividuales);
-      setPaginaActual(1);
+      if (esPrimerDiaDelMes()) {
+        setMensajePeriodo(
+          await crearMensajePeriodoAutomatico(filtrosIniciales)
+        );
+      }
+      setPaginaActual(paginaGuardada);
     } catch (error) {
       setMensajeError(
         error.message || 'No fue posible cargar el historial.'
@@ -252,10 +404,13 @@ function HistorialIncidentes() {
 
     const nombreReal = mapaNombres[name] || name;
 
+    setMensajePeriodo('');
+
     setFiltros((prev) => ({
       ...prev,
       [nombreReal]: value,
       ...(nombreReal === 'ciudadId' ? { cavId: '' } : {}),
+      ...(nombreReal === 'aplicacionId' ? { servicioId: '' } : {}),
     }));
   };
 
@@ -263,6 +418,7 @@ function HistorialIncidentes() {
     try {
       setCargandoFiltros(true);
       setMensajeError('');
+      setMensajePeriodo('');
 
       const respuesta = await incidenteServicio.listarIncidentes(filtros);
       const incidentesIndividuales = filtrarIncidentesIndividuales(
@@ -272,7 +428,9 @@ function HistorialIncidentes() {
 
       setIncidentes(incidentesIndividuales);
       actualizarResumen(incidentesIndividuales);
+
       setPaginaActual(1);
+      guardarEstadoHistorial(filtros, 1);
       setFiltrosVisibles(false);
     } catch (error) {
       setMensajeError(
@@ -287,6 +445,7 @@ function HistorialIncidentes() {
     try {
       setCargandoFiltros(true);
       setMensajeError('');
+      setMensajePeriodo('');
 
       const filtrosReiniciados = crearFiltrosIniciales();
 
@@ -304,7 +463,9 @@ function HistorialIncidentes() {
 
       setIncidentes(incidentesIndividuales);
       actualizarResumen(incidentesIndividuales);
+
       setPaginaActual(1);
+      guardarEstadoHistorial(filtrosReiniciados, 1);
       setFiltrosVisibles(false);
     } catch (error) {
       setMensajeError(
@@ -312,6 +473,82 @@ function HistorialIncidentes() {
       );
     } finally {
       setCargandoFiltros(false);
+    }
+  };
+
+  const crearMensajePeriodoAutomatico = async (filtrosAplicados) => {
+    const periodo = obtenerPeriodoMes(filtrosAplicados);
+
+    if (!periodo) {
+      return '';
+    }
+
+    const periodoAnterior = obtenerPeriodoAnterior(periodo);
+    const filtrosMesAnterior = {
+      ...filtrosAplicados,
+      anio: String(periodoAnterior.anio),
+      mes: periodoAnterior.mesTexto,
+      dia: '',
+      estado: 'abierto',
+    };
+
+    const respuestaMesAnterior = await incidenteServicio.listarIncidentes(
+      filtrosMesAnterior
+    );
+    const abiertosMesAnterior = filtrarIncidentesIndividuales(
+      respuestaMesAnterior,
+      filtrosMesAnterior
+    ).length;
+
+    return crearMensajeCambioMes(periodo, abiertosMesAnterior);
+  };
+
+  const aplicarCambioMesAutomatico = async () => {
+    const fechaActual = obtenerFechaActual();
+    const periodoCalendario = obtenerPeriodoMes({
+      anio: fechaActual.anio,
+      mes: fechaActual.mes,
+    });
+    const claveCalendario = obtenerClavePeriodo(periodoCalendario);
+
+    if (!claveCalendario || periodoCalendarioRef.current === claveCalendario) {
+      return false;
+    }
+
+    try {
+      const filtrosActualizados = {
+        ...filtrosRef.current,
+        anio: String(periodoCalendario.anio),
+        mes: periodoCalendario.mesTexto,
+        dia: '',
+      };
+
+      const respuesta = await incidenteServicio.listarIncidentes(
+        filtrosActualizados
+      );
+      const incidentesIndividuales = filtrarIncidentesIndividuales(
+        respuesta,
+        filtrosActualizados
+      );
+      const mensajeAutomatico = await crearMensajePeriodoAutomatico(
+        filtrosActualizados
+      );
+
+      periodoCalendarioRef.current = claveCalendario;
+      filtrosRef.current = filtrosActualizados;
+      setFiltros(filtrosActualizados);
+      setIncidentes(incidentesIndividuales);
+      actualizarResumen(incidentesIndividuales);
+      setMensajePeriodo(mensajeAutomatico);
+      setPaginaActual(1);
+      guardarEstadoHistorial(filtrosActualizados, 1);
+
+      return true;
+    } catch (error) {
+      setMensajeError(
+        error.message || 'No fue posible actualizar el historial.'
+      );
+      return false;
     }
   };
 
@@ -334,6 +571,13 @@ function HistorialIncidentes() {
     incidentes.length / INCIDENTES_VISIBLES_INICIALES
   );
 
+  useEffect(() => {
+    if (totalPaginas > 0 && paginaActual > totalPaginas) {
+      setPaginaActual(totalPaginas);
+      guardarEstadoHistorial(filtrosRef.current, totalPaginas);
+    }
+  }, [paginaActual, totalPaginas]);
+
   const incidentesVisibles = useMemo(() => {
     const inicio = (paginaActual - 1) * INCIDENTES_VISIBLES_INICIALES;
     const fin = inicio + INCIDENTES_VISIBLES_INICIALES;
@@ -343,6 +587,7 @@ function HistorialIncidentes() {
 
   const cambiarPagina = (pagina) => {
     setPaginaActual(pagina);
+    guardarEstadoHistorial(filtrosRef.current, pagina);
 
     setTimeout(() => {
       irAlInicioDelListado();
@@ -424,6 +669,7 @@ function HistorialIncidentes() {
                 ciudades={ciudades}
                 cavsDisponibles={cavsDisponibles}
                 aplicaciones={aplicaciones}
+                servicios={servicios}
                 tiposFalla={tiposFalla}
                 cantidadFiltrosActivos={cantidadFiltrosActivos}
                 cargando={cargandoFiltros}
@@ -463,8 +709,22 @@ function HistorialIncidentes() {
             <p className="historial-incidentes__texto-carga">
               Cargando incidentes...
             </p>
+          ) : incidentes.length === 0 && mensajePeriodo ? (
+            <div className="historial-incidentes__vacio">
+              <div className="historial-incidentes__alerta-periodo">
+                <span className="historial-incidentes__alerta-periodo-icono">
+                  !
+                </span>
+                <div className="historial-incidentes__alerta-periodo-contenido">
+                  <strong>{mensajePeriodo}</strong>
+                </div>
+              </div>
+            </div>
           ) : (
-            <ListaIncidentes incidentes={incidentesVisibles} />
+            <ListaIncidentes
+              incidentes={incidentesVisibles}
+              textoSinResultados="No se encontraron incidentes."
+            />
           )}
         </div>
       </ContenedorPagina>

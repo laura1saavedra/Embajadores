@@ -316,6 +316,7 @@ class Servicio(Base):
         back_populates="servicio",
         lazy="select"
     )
+    masivos = relationship("Masivo", back_populates="servicio", lazy="select")
 
     def __repr__(self):
         return f"<Servicio id={self.id_servicio} nombre={self.nombre_servicio}>"
@@ -398,6 +399,12 @@ class Masivo(Base):
         nullable=False
     )
 
+    servicio_id = Column(
+        Integer,
+        ForeignKey("API_PROD.servicios.id_servicio", ondelete="RESTRICT", onupdate="CASCADE"),
+        nullable=True
+    )
+
     usuarios_totales = Column(Integer, nullable=True)
     usuarios_totales_afectados = Column(Integer, nullable=False)
 
@@ -413,6 +420,7 @@ class Masivo(Base):
     nota_cierre = Column(Text, nullable=True)
 
     aplicacion = relationship("Aplicacion", back_populates="masivos")
+    servicio = relationship("Servicio", back_populates="masivos")
     tipo_falla = relationship("TipoFalla", back_populates="masivos")
 
     aplicaciones_afectadas = relationship(

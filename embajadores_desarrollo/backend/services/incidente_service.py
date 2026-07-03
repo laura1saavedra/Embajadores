@@ -41,6 +41,21 @@ def _asegurar_columna_servicio_aplicaciones_afectadas(db) -> None:
     """))
 
     db.execute(text("""
+        ALTER TABLE "API_PROD".aplicaciones_afectados
+        DROP CONSTRAINT IF EXISTS uq_incidente_app_tipo_falla
+    """))
+
+    db.execute(text("""
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_incidente_app_servicio_tipo_falla
+        ON "API_PROD".aplicaciones_afectados(
+            incidente_id,
+            aplicacion_id,
+            (COALESCE(servicio_id, 0)),
+            tipo_falla_id
+        )
+    """))
+
+    db.execute(text("""
         DO $$
         BEGIN
             IF NOT EXISTS (
@@ -391,7 +406,7 @@ class IncidenteService:
                     if clave in combinaciones:
                         return (
                             None,
-                            "No se puede registrar la misma combinación de aplicación y tipo de falla más de una vez.",
+                            "No se puede registrar la misma combinación de aplicación, servicio y tipo de falla más de una vez.",
                         )
 
                     combinaciones.add(clave)
@@ -627,7 +642,7 @@ class IncidenteService:
                         if clave in combinaciones:
                             return (
                                 None,
-                                "No se puede registrar la misma combinación de aplicación y tipo de falla más de una vez.",
+                                "No se puede registrar la misma combinación de aplicación, servicio y tipo de falla más de una vez.",
                             )
 
                         combinaciones.add(clave)

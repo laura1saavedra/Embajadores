@@ -22,6 +22,7 @@ class IncidenteAsociadoRespuesta(BaseModel):
     estado: Literal["abierto", "cerrado"]
 
     fecha_hora_reporte: datetime
+    servicio_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -38,6 +39,9 @@ class MasivoRespuesta(BaseModel):
 
     tipo_falla_id: int
     nombre_tipo_falla: Optional[str] = None
+
+    servicio_id: Optional[int] = None
+    nombre_servicio: Optional[str] = None
 
     usuarios_totales: Optional[int] = None
     usuarios_totales_afectados: int
@@ -66,6 +70,9 @@ class MasivoDetalleRespuesta(BaseModel):
 
     tipo_falla_id: int
     nombre_tipo_falla: Optional[str] = None
+
+    servicio_id: Optional[int] = None
+    nombre_servicio: Optional[str] = None
 
     usuarios_totales: Optional[int] = None
     usuarios_totales_afectados: int

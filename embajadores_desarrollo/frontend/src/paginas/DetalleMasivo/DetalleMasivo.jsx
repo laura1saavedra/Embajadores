@@ -105,6 +105,13 @@ function DetalleMasivo() {
     return usuarios;
   };
 
+  const formatearAplicacionServicio = () => {
+    const aplicacion = masivo?.aplicacionNombre || 'Sin aplicación';
+    const servicio = masivo?.servicioNombre || 'Sin servicio';
+
+    return `${aplicacion} - ${servicio}`;
+  };
+
   const irAlInicioDeTabla = () => {
     if (tablaRef.current) {
       tablaRef.current.scrollIntoView({
@@ -251,8 +258,8 @@ function DetalleMasivo() {
           </div>
 
           <div className="detalle-masivo__tarjeta-resumen">
-            <span>Aplicación</span>
-            <strong>{masivo.aplicacionNombre || 'Sin aplicación'}</strong>
+            <span>Aplicación-Servicio</span>
+            <strong>{formatearAplicacionServicio()}</strong>
           </div>
 
           <div className="detalle-masivo__tarjeta-resumen">

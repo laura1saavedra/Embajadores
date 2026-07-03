@@ -84,10 +84,12 @@ def resumen_masivos():
 @masivos_router.get("/")
 def listar_masivos(
     aplicacion_id: Optional[int] = Query(None),
+    servicio_id: Optional[int] = Query(None),
     tipo_falla_id: Optional[int] = Query(None),
 ):
     datos, error = MasivoService.listar_masivos(
         aplicacion_id=aplicacion_id,
+        servicio_id=servicio_id,
         tipo_falla_id=tipo_falla_id,
     )
 

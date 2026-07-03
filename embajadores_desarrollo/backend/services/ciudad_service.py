@@ -320,9 +320,8 @@ class CiudadService:
 
                 ciudad.activo = activo
 
-                if not activo:
-                    for cav in ciudad.cavs or []:
-                        cav.activo = False
+                for cav in ciudad.cavs or []:
+                    cav.activo = activo
 
                 db.commit()
                 db.refresh(ciudad)

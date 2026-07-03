@@ -15,6 +15,7 @@ import '../../componentes/incidentes/FiltrosIncidentes/FiltrosIncidentes.css';
 import './Masivos.css';
 
 const MASIVOS_VISIBLES_INICIALES = 7;
+const ESTADO_MASIVOS_STORAGE_KEY = 'embajadores.masivos.estado';
 
 const FORMATO_FECHA = new Intl.DateTimeFormat('es-CO', {
   dateStyle: 'short',
@@ -30,9 +31,58 @@ const crearFiltrosIniciales = () => {
     fechaDia: '',
     estado: '',
     aplicacionId: '',
+    servicioId: '',
     tipoFallaId: '',
   };
 };
+
+const normalizarFiltrosGuardados = (filtrosGuardados = {}) => {
+  const filtros = {
+    ...crearFiltrosIniciales(),
+    ...filtrosGuardados,
+  };
+
+  if (!filtros.aplicacionId) {
+    filtros.servicioId = '';
+  }
+
+  return filtros;
+};
+
+const obtenerEstadoMasivosGuardado = () => {
+  try {
+    const raw = sessionStorage.getItem(ESTADO_MASIVOS_STORAGE_KEY);
+
+    if (!raw) {
+      return null;
+    }
+
+    const estado = JSON.parse(raw);
+
+    return {
+      filtros: normalizarFiltrosGuardados(estado.filtros),
+      paginaActual: Number(estado.paginaActual) || 1,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const guardarEstadoMasivos = (filtros, paginaActual = 1) => {
+  try {
+    sessionStorage.setItem(
+      ESTADO_MASIVOS_STORAGE_KEY,
+      JSON.stringify({
+        filtros: normalizarFiltrosGuardados(filtros),
+        paginaActual,
+      })
+    );
+  } catch {
+    // sessionStorage puede no estar disponible en algunos contextos.
+  }
+};
+
+const esPrimerDiaDelMes = () => new Date().getDate() === 1;
 
 const ESTADOS = [
   { valor: '', etiqueta: 'Todos' },
@@ -56,6 +106,14 @@ const MESES = [
   { valor: '12', etiqueta: 'Diciembre' },
 ];
 
+const NOMBRES_MESES = MESES.reduce((mapa, mes) => {
+  if (mes.valor) {
+    mapa[mes.valor] = mes.etiqueta;
+  }
+
+  return mapa;
+}, {});
+
 const DIAS = [
   { valor: '', etiqueta: 'Todos' },
   ...Array.from({ length: 31 }, (_, index) => {
@@ -76,6 +134,53 @@ const obtenerAnios = () => {
   ];
 };
 
+const obtenerPeriodoMes = (filtros = {}) => {
+  if (!filtros.fechaAnio || !filtros.fechaMes) {
+    return null;
+  }
+
+  return {
+    anio: Number(filtros.fechaAnio),
+    mes: Number(filtros.fechaMes),
+    mesTexto: String(filtros.fechaMes).padStart(2, '0'),
+  };
+};
+
+const obtenerPeriodoAnterior = (periodo) => {
+  if (!periodo) return null;
+
+  const esEnero = periodo.mes === 1;
+
+  return {
+    anio: esEnero ? periodo.anio - 1 : periodo.anio,
+    mes: esEnero ? 12 : periodo.mes - 1,
+    mesTexto: String(esEnero ? 12 : periodo.mes - 1).padStart(2, '0'),
+  };
+};
+
+const obtenerClavePeriodo = (periodo) =>
+  periodo ? `${periodo.anio}-${periodo.mesTexto}` : '';
+
+const formatearPeriodo = (periodo) => {
+  if (!periodo) return '';
+
+  return `${NOMBRES_MESES[periodo.mesTexto]} de ${periodo.anio}`;
+};
+
+const crearMensajeCambioMes = (periodo, abiertosMesAnterior) => {
+  const periodoAnterior = obtenerPeriodoAnterior(periodo);
+  const etiquetaIncidentes =
+    abiertosMesAnterior === 1
+      ? '1 incidente masivo abierto'
+      : `${abiertosMesAnterior} incidentes masivos abiertos`;
+
+  if (abiertosMesAnterior > 0) {
+    return `Filtro actualizado a ${formatearPeriodo(periodo)}. El mes anterior (${formatearPeriodo(periodoAnterior)}) quedo con ${etiquetaIncidentes}.`;
+  }
+
+  return `Filtro actualizado a ${formatearPeriodo(periodo)}. El mes anterior (${formatearPeriodo(periodoAnterior)}) no dejo incidentes masivos abiertos.`;
+};
+
 const filtrarMasivos = (lista = [], filtros = {}) => {
   return lista.filter((masivo) => {
     if (filtros.estado && masivo.estado !== filtros.estado) {
@@ -85,6 +190,13 @@ const filtrarMasivos = (lista = [], filtros = {}) => {
     if (
       filtros.aplicacionId &&
       String(masivo.aplicacionId) !== String(filtros.aplicacionId)
+    ) {
+      return false;
+    }
+
+    if (
+      filtros.servicioId &&
+      String(masivo.servicioId) !== String(filtros.servicioId)
     ) {
       return false;
     }
@@ -123,25 +235,33 @@ const filtrarMasivos = (lista = [], filtros = {}) => {
 };
 
 function Masivos() {
+  const estadoGuardadoInicial = useMemo(
+    () => obtenerEstadoMasivosGuardado(),
+    []
+  );
+
   const [masivos, setMasivos] = useState([]);
   const [aplicaciones, setAplicaciones] = useState([]);
+  const [servicios, setServicios] = useState([]);
   const [tiposFalla, setTiposFalla] = useState([]);
-  const [filtros, setFiltros] = useState(crearFiltrosIniciales());
-
-  const [resumen, setResumen] = useState({
-    total: 0,
-    abiertos: 0,
-    cerrados: 0,
-  });
+  const [filtros, setFiltros] = useState(
+    estadoGuardadoInicial?.filtros || crearFiltrosIniciales()
+  );
 
   const [cargando, setCargando] = useState(true);
   const [cargandoFiltros, setCargandoFiltros] = useState(false);
   const [mensajeError, setMensajeError] = useState('');
-  const [paginaActual, setPaginaActual] = useState(1);
+  const [mensajePeriodo, setMensajePeriodo] = useState('');
+  const [paginaActual, setPaginaActual] = useState(
+    estadoGuardadoInicial?.paginaActual || 1
+  );
   const [filtrosVisibles, setFiltrosVisibles] = useState(false);
 
   const listadoRef = useRef(null);
   const filtrosRef = useRef(crearFiltrosIniciales());
+  const periodoCalendarioRef = useRef(
+    obtenerClavePeriodo(obtenerPeriodoMes(crearFiltrosIniciales()))
+  );
 
   useEffect(() => {
     filtrosRef.current = filtros;
@@ -159,17 +279,22 @@ function Masivos() {
 
   const actualizarMasivosEnSegundoPlano = async () => {
     try {
+      const cambioAutomatico = await aplicarCambioMesAutomatico();
+
+      if (cambioAutomatico) {
+        return;
+      }
+
       const filtrosActuales = filtrosRef.current;
 
-      const [masivosRespuesta, resumenRespuesta] = await Promise.all([
-        masivoServicio.listarMasivos(filtrosActuales, {
+      const masivosRespuesta = await masivoServicio.listarMasivos(
+        filtrosActuales,
+        {
           incluirCerrados: true,
-        }),
-        masivoServicio.obtenerResumen(),
-      ]);
+        }
+      );
 
       setMasivos(filtrarMasivos(masivosRespuesta, filtrosActuales));
-      setResumen(resumenRespuesta);
     } catch (error) {
       setMensajeError(
         error.message || 'No fue posible actualizar los incidentes masivos.'
@@ -182,28 +307,35 @@ function Masivos() {
       setCargando(true);
       setMensajeError('');
 
-      const filtrosIniciales = crearFiltrosIniciales();
+      const estadoGuardado = obtenerEstadoMasivosGuardado();
+      const filtrosIniciales = estadoGuardado?.filtros || crearFiltrosIniciales();
+      const paginaGuardada = estadoGuardado?.paginaActual || 1;
 
       const [
         masivosRespuesta,
-        resumenRespuesta,
         aplicacionesRespuesta,
+        serviciosRespuesta,
         tiposFallaRespuesta,
       ] = await Promise.all([
         masivoServicio.listarMasivos(filtrosIniciales, {
           incluirCerrados: true,
         }),
-        masivoServicio.obtenerResumen(),
         incidenteServicio.obtenerAplicaciones(),
+        incidenteServicio.obtenerServicios(),
         incidenteServicio.obtenerTiposFalla(),
       ]);
 
       setFiltros(filtrosIniciales);
       setMasivos(filtrarMasivos(masivosRespuesta, filtrosIniciales));
-      setResumen(resumenRespuesta);
       setAplicaciones(aplicacionesRespuesta);
+      setServicios(serviciosRespuesta);
       setTiposFalla(tiposFallaRespuesta);
-      setPaginaActual(1);
+      if (esPrimerDiaDelMes()) {
+        setMensajePeriodo(
+          await crearMensajePeriodoAutomatico(filtrosIniciales)
+        );
+      }
+      setPaginaActual(paginaGuardada);
     } catch (error) {
       setMensajeError(
         error.message || 'No fue posible cargar los incidentes masivos.'
@@ -216,9 +348,12 @@ function Masivos() {
   const manejarCambioFiltro = (evento) => {
     const { name, value } = evento.target;
 
+    setMensajePeriodo('');
+
     setFiltros((prev) => ({
       ...prev,
       [name]: value,
+      ...(name === 'aplicacionId' ? { servicioId: '' } : {}),
     }));
   };
 
@@ -226,12 +361,15 @@ function Masivos() {
     try {
       setCargandoFiltros(true);
       setMensajeError('');
+      setMensajePeriodo('');
 
       const respuesta = await masivoServicio.listarMasivos(filtros, {
         incluirCerrados: true,
       });
       setMasivos(filtrarMasivos(respuesta, filtros));
+
       setPaginaActual(1);
+      guardarEstadoMasivos(filtros, 1);
       setFiltrosVisibles(false);
     } catch (error) {
       setMensajeError(error.message || 'No fue posible aplicar los filtros.');
@@ -244,6 +382,7 @@ function Masivos() {
     try {
       setCargandoFiltros(true);
       setMensajeError('');
+      setMensajePeriodo('');
 
       const filtrosIniciales = crearFiltrosIniciales();
 
@@ -253,13 +392,79 @@ function Masivos() {
         incluirCerrados: true,
       });
       setMasivos(filtrarMasivos(respuesta, filtrosIniciales));
+
       setPaginaActual(1);
+      guardarEstadoMasivos(filtrosIniciales, 1);
       setFiltrosVisibles(false);
     } catch (error) {
       setMensajeError(error.message || 'No fue posible limpiar los filtros.');
     } finally {
       setCargandoFiltros(false);
     }
+  };
+
+  const crearMensajePeriodoAutomatico = async (filtrosAplicados) => {
+    const periodo = obtenerPeriodoMes(filtrosAplicados);
+
+    if (!periodo) {
+      return '';
+    }
+
+    const periodoAnterior = obtenerPeriodoAnterior(periodo);
+    const filtrosMesAnterior = {
+      ...filtrosAplicados,
+      fechaAnio: String(periodoAnterior.anio),
+      fechaMes: periodoAnterior.mesTexto,
+      fechaDia: '',
+      estado: 'abierto',
+    };
+
+    const respuestaMesAnterior = await masivoServicio.listarMasivos(
+      filtrosMesAnterior,
+      { incluirCerrados: true }
+    );
+    const abiertosMesAnterior = filtrarMasivos(
+      respuestaMesAnterior,
+      filtrosMesAnterior
+    ).length;
+
+    return crearMensajeCambioMes(periodo, abiertosMesAnterior);
+  };
+
+  const aplicarCambioMesAutomatico = async () => {
+    const filtrosCalendario = crearFiltrosIniciales();
+    const periodoCalendario = obtenerPeriodoMes(filtrosCalendario);
+    const claveCalendario = obtenerClavePeriodo(periodoCalendario);
+
+    if (!claveCalendario || periodoCalendarioRef.current === claveCalendario) {
+      return false;
+    }
+
+    const filtrosActualizados = {
+      ...filtrosRef.current,
+      fechaAnio: String(periodoCalendario.anio),
+      fechaMes: periodoCalendario.mesTexto,
+      fechaDia: '',
+    };
+
+    const respuesta = await masivoServicio.listarMasivos(
+      filtrosActualizados,
+      { incluirCerrados: true }
+    );
+    const masivosFiltrados = filtrarMasivos(respuesta, filtrosActualizados);
+    const mensajeAutomatico = await crearMensajePeriodoAutomatico(
+      filtrosActualizados
+    );
+
+    periodoCalendarioRef.current = claveCalendario;
+    filtrosRef.current = filtrosActualizados;
+    setFiltros(filtrosActualizados);
+    setMasivos(masivosFiltrados);
+    setMensajePeriodo(mensajeAutomatico);
+    setPaginaActual(1);
+    guardarEstadoMasivos(filtrosActualizados, 1);
+
+    return true;
   };
 
   const irAlInicioDelListado = () => {
@@ -296,6 +501,27 @@ function Masivos() {
     ];
   }, [tiposFalla]);
 
+  const opcionesServicios = useMemo(() => {
+    if (!filtros.aplicacionId) {
+      return [{ valor: '', etiqueta: 'Primero seleccione aplicación' }];
+    }
+
+    const serviciosFiltrados = servicios.filter(
+      (servicio) =>
+        String(servicio.aplicacionId) === String(filtros.aplicacionId)
+    );
+
+    return [
+      { valor: '', etiqueta: 'Todos' },
+      ...serviciosFiltrados.map((servicio) => ({
+        valor: servicio.id,
+        etiqueta: servicio.nombre,
+      })),
+    ];
+  }, [servicios, filtros.aplicacionId]);
+
+  const servicioDeshabilitado = !filtros.aplicacionId;
+
   const anios = useMemo(() => obtenerAnios(), []);
 
   const cantidadFiltrosActivos = useMemo(() => {
@@ -310,6 +536,13 @@ function Masivos() {
     masivos.length / MASIVOS_VISIBLES_INICIALES
   );
 
+  useEffect(() => {
+    if (totalPaginas > 0 && paginaActual > totalPaginas) {
+      setPaginaActual(totalPaginas);
+      guardarEstadoMasivos(filtrosRef.current, totalPaginas);
+    }
+  }, [paginaActual, totalPaginas]);
+
   const masivosVisibles = useMemo(() => {
     const inicio = (paginaActual - 1) * MASIVOS_VISIBLES_INICIALES;
     const fin = inicio + MASIVOS_VISIBLES_INICIALES;
@@ -319,6 +552,7 @@ function Masivos() {
 
   const cambiarPagina = (pagina) => {
     setPaginaActual(pagina);
+    guardarEstadoMasivos(filtrosRef.current, pagina);
 
     setTimeout(() => {
       irAlInicioDelListado();
@@ -338,7 +572,7 @@ function Masivos() {
 
             <p className="masivos__hero-descripcion">
               Consulta los incidentes masivos generados automaticamente por
-              aplicacion y tipo de falla, revisa su impacto y realiza seguimiento.
+              aplicacion, servicio y tipo de falla, revisa su impacto y realiza seguimiento.
             </p>
           </div>
         </section>
@@ -353,7 +587,7 @@ function Masivos() {
           <div className="masivos__resumen">
             <div className="masivos__tarjeta-resumen masivos__tarjeta-resumen--total">
               <span>Total</span>
-              <strong>{resumen.total}</strong>
+              <strong>{masivos.length}</strong>
             </div>
           </div>
 
@@ -474,6 +708,23 @@ function Masivos() {
 
                     <div className="filtros-incidentes__campo">
                       <SelectBuscable
+                        id="servicioId"
+                        label="Servicio"
+                        opciones={opcionesServicios}
+                        valor={filtros.servicioId}
+                        onChange={manejarCambioFiltro}
+                        disabled={cargandoFiltros || servicioDeshabilitado}
+                        placeholder={
+                          servicioDeshabilitado
+                            ? 'Primero seleccione aplicación'
+                            : 'Todos'
+                        }
+                        placeholderBusqueda="Buscar servicio..."
+                      />
+                    </div>
+
+                    <div className="filtros-incidentes__campo">
+                      <SelectBuscable
                         id="tipoFallaId"
                         label="Tipo de falla"
                         opciones={opcionesTiposFalla}
@@ -539,7 +790,16 @@ function Masivos() {
             </p>
           ) : masivos.length === 0 ? (
             <div className="masivos__vacio">
-              No se encontraron incidentes masivos.
+              {mensajePeriodo ? (
+                <div className="masivos__alerta-periodo">
+                  <span className="masivos__alerta-periodo-icono">!</span>
+                  <div className="masivos__alerta-periodo-contenido">
+                    <strong>{mensajePeriodo}</strong>
+                  </div>
+                </div>
+              ) : (
+                'No se encontraron incidentes masivos.'
+              )}
             </div>
           ) : (
             <div className="masivos__tabla-contenedor">
@@ -548,6 +808,7 @@ function Masivos() {
                   <tr>
                     <th>ID</th>
                     <th>Aplicacion</th>
+                    <th>Servicio</th>
                     <th>Tipo de falla</th>
                     <th className="masivos__celda-centrada">
                       CAVs afectados
@@ -559,7 +820,7 @@ function Masivos() {
                       Usuarios en operacion
                     </th>
                     <th className="masivos__celda-centrada">Estado</th>
-                    <th>Fecha generacion</th>
+                    <th className="masivos__celda-fecha">Fecha generacion</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -569,6 +830,7 @@ function Masivos() {
                     <tr key={masivo.idMasivo}>
                       <td>#{masivo.idMasivo}</td>
                       <td>{masivo.aplicacionNombre || 'Sin aplicacion'}</td>
+                      <td>{masivo.servicioNombre || 'Sin servicio'}</td>
                       <td>{masivo.tipoFallaNombre || 'Sin tipo'}</td>
                       <td className="masivos__celda-centrada">
                         {masivo.cantidadCavs}
@@ -582,7 +844,9 @@ function Masivos() {
                       <td className="masivos__celda-centrada">
                         <EstadoIncidente estado={masivo.estado} />
                       </td>
-                      <td>{formatearFecha(masivo.fechaHoraGenerado)}</td>
+                      <td className="masivos__celda-fecha">
+                        {formatearFecha(masivo.fechaHoraGenerado)}
+                      </td>
                       <td>
                         <Link
                           to={`/detalle-masivo/${masivo.idMasivo}`}

@@ -633,7 +633,7 @@ function AplicacionesTipos({ onVolver }) {
       setMensajeExito(
         app.activo
           ? 'Aplicacion inhabilitada correctamente. Tambien se inhabilitaron los servicios asociados.'
-          : 'Aplicacion habilitada correctamente.'
+          : 'Aplicacion habilitada correctamente. Tambien se habilitaron los servicios asociados.'
       );
       subirAlInicio();
     } catch (error) {

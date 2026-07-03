@@ -48,6 +48,7 @@ function FiltrosIncidentes({
   ciudades = [],
   cavsDisponibles = [],
   aplicaciones = [],
+  servicios = [],
   tiposFalla = [],
   cantidadFiltrosActivos = 0,
   cargando = false,
@@ -90,6 +91,20 @@ function FiltrosIncidentes({
       etiqueta: a.nombre,
     })),
   ];
+
+  const opcionesServicios = filtros.aplicacionId
+    ? [
+        { valor: '', etiqueta: 'Todos' },
+        ...servicios
+          .filter((servicio) =>
+            String(servicio.aplicacionId) === String(filtros.aplicacionId)
+          )
+          .map((servicio) => ({
+            valor: servicio.id,
+            etiqueta: servicio.nombre,
+          })),
+      ]
+    : [{ valor: '', etiqueta: 'Primero seleccione aplicación' }];
 
   const opcionesTiposFalla = [
     { valor: '', etiqueta: 'Todos' },
@@ -217,6 +232,24 @@ function FiltrosIncidentes({
               disabled={cargando}
               placeholder="Todas"
               placeholderBusqueda="Buscar aplicación..."
+            />
+          </div>
+
+          {/* Servicio */}
+          <div className="filtros-incidentes__campo">
+            <SelectBuscable
+              id="servicioId"
+              label="Servicio"
+              opciones={opcionesServicios}
+              valor={filtros.servicioId}
+              onChange={onCambioFiltro}
+              disabled={cargando || !filtros.aplicacionId}
+              placeholder={
+                filtros.aplicacionId
+                  ? 'Todos'
+                  : 'Primero seleccione aplicación'
+              }
+              placeholderBusqueda="Buscar servicio..."
             />
           </div>
 

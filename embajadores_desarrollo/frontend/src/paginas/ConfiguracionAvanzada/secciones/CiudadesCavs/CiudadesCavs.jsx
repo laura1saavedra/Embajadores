@@ -703,7 +703,7 @@ function CiudadesCavs({ onVolver }) {
       setMensajeExito(
         ciudad.activo
           ? 'Ciudad y CAVs inhabilitados correctamente.'
-          : 'Ciudad habilitada correctamente.'
+          : 'Ciudad y CAVs habilitados correctamente.'
       );
       subirAlInicio();
     } catch (error) {

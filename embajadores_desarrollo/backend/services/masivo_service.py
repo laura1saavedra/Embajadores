@@ -5,9 +5,9 @@ Logica de incidentes masivos.
 
 Un incidente masivo se genera cuando existen
 5 o mas incidentes abiertos
-con la misma aplicacion y tipo de falla.
+con la misma aplicacion, servicio y tipo de falla.
 
-Si ya existe un masivo abierto con la misma aplicacion y tipo de falla,
+Si ya existe un masivo abierto con la misma aplicacion, servicio y tipo de falla,
 la aplicacion afectada del incidente se asocia automaticamente a ese masivo.
 """
 
@@ -48,6 +48,21 @@ def _asegurar_columna_servicio_aplicaciones_afectadas(db) -> None:
     """))
 
     db.execute(text("""
+        ALTER TABLE "API_PROD".aplicaciones_afectados
+        DROP CONSTRAINT IF EXISTS uq_incidente_app_tipo_falla
+    """))
+
+    db.execute(text("""
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_incidente_app_servicio_tipo_falla
+        ON "API_PROD".aplicaciones_afectados(
+            incidente_id,
+            aplicacion_id,
+            (COALESCE(servicio_id, 0)),
+            tipo_falla_id
+        )
+    """))
+
+    db.execute(text("""
         DO $$
         BEGIN
             IF NOT EXISTS (
@@ -67,6 +82,36 @@ def _asegurar_columna_servicio_aplicaciones_afectadas(db) -> None:
 
 
 def _asegurar_columnas_masivo(db) -> None:
+    asegurar_tabla_servicios(db)
+
+    db.execute(text("""
+        ALTER TABLE "API_PROD".masivo
+        ADD COLUMN IF NOT EXISTS servicio_id INTEGER NULL
+    """))
+
+    db.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_masivo_servicio_id
+        ON "API_PROD".masivo(servicio_id)
+    """))
+
+    db.execute(text("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = 'fk_masivo_servicio'
+            ) THEN
+                ALTER TABLE "API_PROD".masivo
+                ADD CONSTRAINT fk_masivo_servicio
+                FOREIGN KEY (servicio_id)
+                REFERENCES "API_PROD".servicios(id_servicio)
+                ON UPDATE CASCADE
+                ON DELETE RESTRICT;
+            END IF;
+        END $$;
+    """))
+
     db.execute(text("""
         ALTER TABLE "API_PROD".masivo
         ADD COLUMN IF NOT EXISTS nota_cierre TEXT NULL
@@ -138,6 +183,11 @@ def _masivo_a_dict(masivo: Masivo) -> Dict[str, Any]:
             masivo.tipo_falla.nombre_tipo
             if masivo.tipo_falla else None
         ),
+        "servicio_id": masivo.servicio_id,
+        "nombre_servicio": (
+            masivo.servicio.nombre_servicio
+            if masivo.servicio else None
+        ),
         "usuarios_totales": usuarios_totales,
         "usuarios_totales_afectados": usuarios_totales_afectados,
         "cantidad_incidentes": len(incidentes),
@@ -205,6 +255,7 @@ def _detalle_masivo_a_dict(masivo: Masivo) -> Dict[str, Any]:
                 "id_incidente": incidente.id_incidente,
                 "id_aplicaciones_afectados": aa.id_aplicaciones_afectados,
                 "aplicacion_id": aa.aplicacion_id,
+                "servicio_id": aa.servicio_id,
                 "tipo_falla_id": aa.tipo_falla_id,
                 "usuarios_afectados": incidente.usuarios_afectados,
                 "usuarios_operacion": incidente.usuarios_operacion,
@@ -298,12 +349,14 @@ class MasivoService:
 
         for aplicacion_afectada in incidente.aplicaciones_afectadas:
             aplicacion_id = aplicacion_afectada.aplicacion_id
+            servicio_id = aplicacion_afectada.servicio_id
             tipo_falla_id = aplicacion_afectada.tipo_falla_id
 
             masivo_existente = (
                 db.query(Masivo)
                 .filter(
                     Masivo.aplicacion_id == aplicacion_id,
+                    Masivo.servicio_id == servicio_id,
                     Masivo.tipo_falla_id == tipo_falla_id,
                     Masivo.estado == "abierto",
                 )
@@ -334,6 +387,7 @@ class MasivoService:
                 .filter(
                     Incidente.estado == "abierto",
                     AplicacionAfectada.aplicacion_id == aplicacion_id,
+                    AplicacionAfectada.servicio_id == servicio_id,
                     AplicacionAfectada.tipo_falla_id == tipo_falla_id,
                     AplicacionAfectada.masivo_id.is_(None),
                 )
@@ -348,6 +402,27 @@ class MasivoService:
             if len(incidentes_unicos) < MIN_INCIDENTES_MASIVO:
                 continue
 
+            masivos_misma_clasificacion = (
+                db.query(Masivo)
+                .filter(
+                    Masivo.aplicacion_id == aplicacion_id,
+                    Masivo.servicio_id == servicio_id,
+                    Masivo.tipo_falla_id == tipo_falla_id,
+                )
+                .count()
+            )
+
+            if masivos_misma_clasificacion >= 2:
+                logger.info(
+                    "No se crea masivo para aplicacion %s, servicio %s y tipo %s "
+                    "porque ya existen %s masivos con esa clasificacion.",
+                    aplicacion_id,
+                    servicio_id,
+                    tipo_falla_id,
+                    masivos_misma_clasificacion,
+                )
+                continue
+
             fecha_primer_incidente = min(
                 (
                     aa.incidente.fecha_hora_reporte
@@ -359,6 +434,7 @@ class MasivoService:
 
             datos_masivo = {
                 "aplicacion_id": aplicacion_id,
+                "servicio_id": servicio_id,
                 "tipo_falla_id": tipo_falla_id,
                 "usuarios_totales": None,
                 "usuarios_totales_afectados": 0,
@@ -383,7 +459,8 @@ class MasivoService:
 
             logger.info(
                 f"Incidente masivo {nuevo_masivo.idmasivo} creado para "
-                f"aplicacion {aplicacion_id} y tipo de falla {tipo_falla_id}. "
+                f"aplicacion {aplicacion_id}, servicio {servicio_id} "
+                f"y tipo de falla {tipo_falla_id}. "
                 f"Incidentes asociados: {len(incidentes_unicos)}."
             )
 
@@ -393,7 +470,7 @@ class MasivoService:
         Cada ejecucion:
         - Busca masivos activos.
         - Busca aplicaciones afectadas abiertas sin masivo asociado.
-        - Si coinciden en aplicacion y tipo de falla, las asocia al masivo.
+        - Si coinciden en aplicacion, servicio y tipo de falla, las asocia al masivo.
         """
 
         try:
@@ -420,6 +497,7 @@ class MasivoService:
                             Incidente.estado == "abierto",
                             AplicacionAfectada.masivo_id.is_(None),
                             AplicacionAfectada.aplicacion_id == masivo.aplicacion_id,
+                            AplicacionAfectada.servicio_id == masivo.servicio_id,
                             AplicacionAfectada.tipo_falla_id == masivo.tipo_falla_id,
                         )
                         .all()
@@ -455,6 +533,7 @@ class MasivoService:
     @staticmethod
     def listar_masivos(
         aplicacion_id: Optional[int] = None,
+        servicio_id: Optional[int] = None,
         tipo_falla_id: Optional[int] = None,
     ) -> Tuple[Optional[List[Dict]], Optional[str]]:
 
@@ -467,6 +546,7 @@ class MasivoService:
                     db.query(Masivo)
                     .options(
                         joinedload(Masivo.aplicacion),
+                        joinedload(Masivo.servicio),
                         joinedload(Masivo.tipo_falla),
                         joinedload(Masivo.aplicaciones_afectadas)
                             .joinedload(AplicacionAfectada.incidente),
@@ -476,6 +556,9 @@ class MasivoService:
 
                 if aplicacion_id:
                     query = query.filter(Masivo.aplicacion_id == aplicacion_id)
+
+                if servicio_id:
+                    query = query.filter(Masivo.servicio_id == servicio_id)
 
                 if tipo_falla_id:
                     query = query.filter(Masivo.tipo_falla_id == tipo_falla_id)
@@ -502,6 +585,7 @@ class MasivoService:
                     db.query(Masivo)
                     .options(
                         joinedload(Masivo.aplicacion),
+                        joinedload(Masivo.servicio),
                         joinedload(Masivo.tipo_falla),
                         joinedload(Masivo.aplicaciones_afectadas)
                             .joinedload(AplicacionAfectada.incidente)
