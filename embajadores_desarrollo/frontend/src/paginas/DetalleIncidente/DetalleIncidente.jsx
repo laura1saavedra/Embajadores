@@ -86,7 +86,7 @@ function DetalleIncidente() {
   const puedeEditar = esAdministrador && usuarioTienePermiso(
     usuario,
     PERMISOS.EDITAR_INCIDENTE
-  );
+  ) && incidente?.estado === 'abierto';
   const puedeCerrar = usuarioTienePermiso(
     usuario,
     PERMISOS.CERRAR_INCIDENTE

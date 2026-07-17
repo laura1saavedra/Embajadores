@@ -8,7 +8,7 @@ import './CiudadesCavs.css';
 const INFO_CAV_INICIAL = {
   direccion: '',
   jefe: '',
-  supervisor: '',
+  supervisores: [{ nombre: '' }],
   terminales: '',
 };
 
@@ -30,11 +30,86 @@ const FORM_CAV_INICIAL = {
   ciudadId: '',
   direccion: '',
   nombreJefe: '',
-  nombreSupervisor: '',
+  supervisores: [{ nombre: '' }],
   numeroTerminales: '',
 };
 
 const ELEMENTOS_POR_PAGINA = 5;
+
+const supervisoresValidos = (supervisores = []) =>
+  supervisores
+    .map((supervisor) => ({
+      nombre: supervisor.nombre.trim(),
+    }))
+    .filter((supervisor) => supervisor.nombre);
+
+const claveSupervisores = (supervisores = []) =>
+  supervisoresValidos(supervisores)
+    .map((supervisor) => supervisor.nombre.toLowerCase())
+    .join('||');
+
+const tieneSupervisoresDuplicados = (supervisores = []) => {
+  const claves = supervisoresValidos(supervisores).map((supervisor) =>
+    supervisor.nombre
+      .replace(/\s+/g, ' ')
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+  );
+
+  return new Set(claves).size !== claves.length;
+};
+
+function CamposSupervisores({ supervisores, onChange, prefijo, disabled }) {
+  const cambiar = (index, campo, valor) => {
+    onChange(
+      supervisores.map((supervisor, posicion) =>
+        posicion === index
+          ? { ...supervisor, [campo]: valor }
+          : supervisor
+      )
+    );
+  };
+
+  return (
+    <div className="ciudades-cavs__supervisores">
+      <label className="ciudades-cavs__supervisores-titulo">Supervisores</label>
+      {supervisores.map((supervisor, index) => (
+        <div className="ciudades-cavs__supervisor-fila" key={`${prefijo}-${index}`}>
+          <input
+            id={`${prefijo}-nombre-${index}`}
+            type="text"
+            aria-label={`Nombre del supervisor ${index + 1}`}
+            placeholder="Nombre - celular"
+            value={supervisor.nombre}
+            onChange={(evento) => cambiar(index, 'nombre', evento.target.value)}
+            disabled={disabled}
+          />
+          <button
+            type="button"
+            className="ciudades-cavs__boton-quitar ciudades-cavs__quitar-supervisor"
+            onClick={() => onChange(supervisores.filter((_, posicion) => posicion !== index))}
+            disabled={disabled || supervisores.length === 1}
+            aria-label={`Quitar supervisor ${index + 1}`}
+          >
+            ×
+          </button>
+          {index === supervisores.length - 1 && (
+            <button
+              type="button"
+              className="ciudades-cavs__boton-agregar ciudades-cavs__agregar-supervisor"
+              onClick={() => onChange([...supervisores, { nombre: '' }])}
+              disabled={disabled}
+            >
+              + Agregar supervisor
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function CiudadesCavs({ onVolver }) {
   const [ciudades, setCiudades] = useState([]);
@@ -42,6 +117,7 @@ function CiudadesCavs({ onVolver }) {
   const [busquedaCiudad, setBusquedaCiudad] = useState('');
   const [paginaCiudades, setPaginaCiudades] = useState(1);
   const [ciudadExpandida, setCiudadExpandida] = useState(null);
+  const [supervisoresExpandidos, setSupervisoresExpandidos] = useState({});
 
   const [formCiudad, setFormCiudad] = useState(FORM_CIUDAD_INICIAL);
   const [formCav, setFormCav] = useState(FORM_CAV_INICIAL);
@@ -85,8 +161,8 @@ function CiudadesCavs({ onVolver }) {
       normalizarParaComparar(editandoCav.direccion || '') &&
     normalizarParaComparar(formCav.nombreJefe) ===
       normalizarParaComparar(editandoCav.nombreJefe || '') &&
-    normalizarParaComparar(formCav.nombreSupervisor) ===
-      normalizarParaComparar(editandoCav.nombreSupervisor || '') &&
+    claveSupervisores(formCav.supervisores) ===
+      claveSupervisores(editandoCav.supervisores || []) &&
     Number(formCav.numeroTerminales || 0) ===
       Number(editandoCav.numeroTerminales || 0);
 
@@ -165,6 +241,13 @@ function CiudadesCavs({ onVolver }) {
     setCiudadExpandida((prev) => (prev === idCiudad ? null : idCiudad));
   };
 
+  const alternarSupervisores = (idCav) => {
+    setSupervisoresExpandidos((prev) => ({
+      ...prev,
+      [idCav]: !prev[idCav],
+    }));
+  };
+
   const guardarCiudad = async (evento) => {
     evento.preventDefault();
 
@@ -217,7 +300,7 @@ function CiudadesCavs({ onVolver }) {
           {
             direccion: nuevoCav.info.direccion,
             nombreJefe: nuevoCav.info.jefe,
-            nombreSupervisor: nuevoCav.info.supervisor,
+            supervisores: nuevoCav.info.supervisores,
             numeroTerminales: nuevoCav.info.terminales,
           }
         );
@@ -292,7 +375,7 @@ function CiudadesCavs({ onVolver }) {
     const nombre = formCav.nombre.trim();
     const direccion = formCav.direccion.trim();
     const nombreJefe = formCav.nombreJefe.trim();
-    const nombreSupervisor = formCav.nombreSupervisor.trim();
+    const supervisores = supervisoresValidos(formCav.supervisores);
     const numeroTerminales = Number(formCav.numeroTerminales);
 
     if (!nombre || !formCav.ciudadId) {
@@ -304,13 +387,19 @@ function CiudadesCavs({ onVolver }) {
     if (
       !direccion ||
       !nombreJefe ||
-      !nombreSupervisor ||
+      supervisores.length === 0 ||
       !Number.isInteger(numeroTerminales) ||
       numeroTerminales <= 0
     ) {
       setMensajeError(
         'Direccion, jefe, supervisor y numero de terminales son obligatorios para el CAV.'
       );
+      subirAlInicio();
+      return;
+    }
+
+    if (tieneSupervisoresDuplicados(supervisores)) {
+      setMensajeError('No puedes agregar dos veces el mismo nombre y celular de supervisor.');
       subirAlInicio();
       return;
     }
@@ -335,7 +424,7 @@ function CiudadesCavs({ onVolver }) {
           {
             direccion,
             nombreJefe,
-            nombreSupervisor,
+            supervisores,
             numeroTerminales,
           }
         );
@@ -346,7 +435,7 @@ function CiudadesCavs({ onVolver }) {
         await configuracionServicio.crearCav(nombre, formCav.ciudadId, {
           direccion,
           nombreJefe,
-          nombreSupervisor,
+          supervisores,
           numeroTerminales,
         });
         setMensajeExito('CAV creado correctamente.');
@@ -418,13 +507,19 @@ function CiudadesCavs({ onVolver }) {
 
     const direccion = cav.info.direccion.trim();
     const jefe = cav.info.jefe.trim();
-    const supervisor = cav.info.supervisor.trim();
+    const supervisores = supervisoresValidos(cav.info.supervisores);
     const terminales = Number(cav.info.terminales);
 
-    if (!direccion || !jefe || !supervisor || !Number.isInteger(terminales) || terminales <= 0) {
+    if (!direccion || !jefe || supervisores.length === 0 || !Number.isInteger(terminales) || terminales <= 0) {
       setMensajeError(
         'Direccion, jefe, supervisor y numero de terminales son obligatorios para el CAV.'
       );
+      subirAlInicio();
+      return;
+    }
+
+    if (tieneSupervisoresDuplicados(supervisores)) {
+      setMensajeError('No puedes agregar dos veces el mismo nombre y celular de supervisor.');
       subirAlInicio();
       return;
     }
@@ -442,7 +537,7 @@ function CiudadesCavs({ onVolver }) {
               info: {
                 direccion,
                 jefe,
-                supervisor,
+                supervisores,
                 terminales: String(terminales),
               },
             }
@@ -506,19 +601,25 @@ function CiudadesCavs({ onVolver }) {
 
     const direccion = cav.info.direccion.trim();
     const jefe = cav.info.jefe.trim();
-    const supervisor = cav.info.supervisor.trim();
+    const supervisores = supervisoresValidos(cav.info.supervisores);
     const terminales = Number(cav.info.terminales);
 
     if (
       !direccion ||
       !jefe ||
-      !supervisor ||
+      supervisores.length === 0 ||
       !Number.isInteger(terminales) ||
       terminales <= 0
     ) {
       setMensajeError(
         'Direccion, jefe, supervisor y numero de terminales son obligatorios para el CAV.'
       );
+      subirAlInicio();
+      return;
+    }
+
+    if (tieneSupervisoresDuplicados(supervisores)) {
+      setMensajeError('No puedes agregar dos veces el mismo nombre y celular de supervisor.');
       subirAlInicio();
       return;
     }
@@ -536,7 +637,7 @@ function CiudadesCavs({ onVolver }) {
               info: {
                 direccion,
                 jefe,
-                supervisor,
+                supervisores,
                 terminales: String(terminales),
               },
             }
@@ -598,7 +699,9 @@ function CiudadesCavs({ onVolver }) {
       ciudadId: ciudad.idCiudad,
       direccion: cav.direccion || '',
       nombreJefe: cav.nombreJefe || '',
-      nombreSupervisor: cav.nombreSupervisor || '',
+      supervisores: cav.supervisores?.length
+        ? cav.supervisores
+        : [{ nombre: cav.nombreSupervisor || '' }],
       numeroTerminales: cav.numeroTerminales ? String(cav.numeroTerminales) : '',
     });
   };
@@ -965,8 +1068,33 @@ function CiudadesCavs({ onVolver }) {
                                           <span>
                                             Jefe: {cav.nombreJefe || 'Sin informacion'}
                                           </span>
-                                          <span>
-                                            Supervisor: {cav.nombreSupervisor || 'Sin informacion'}
+                                          <span className="ciudades-cavs__supervisores-resumen">
+                                            Supervisores:{' '}
+                                            {cav.supervisores?.length
+                                              ? cav.supervisores
+                                                .slice(
+                                                  0,
+                                                  supervisoresExpandidos[cav.idCav]
+                                                    ? cav.supervisores.length
+                                                    : 1
+                                                )
+                                                .map((supervisor) => (
+                                                  <span key={supervisor.nombre}>
+                                                    {supervisor.nombre}
+                                                  </span>
+                                                ))
+                                              : cav.nombreSupervisor || 'Sin informacion'}
+                                            {cav.supervisores?.length > 1 && (
+                                              <button
+                                                type="button"
+                                                className="ciudades-cavs__ver-supervisores"
+                                                onClick={() => alternarSupervisores(cav.idCav)}
+                                              >
+                                                {supervisoresExpandidos[cav.idCav]
+                                                  ? 'Ver menos'
+                                                  : 'Ver más'}
+                                              </button>
+                                            )}
                                           </span>
                                           <span>
                                             Terminales: {cav.numeroTerminales || 'Sin informacion'}
@@ -1118,22 +1246,14 @@ function CiudadesCavs({ onVolver }) {
                         />
                       </div>
 
-                      <div>
-                        <label htmlFor="nombreSupervisorCav">
-                          Nombre del supervisor
-                        </label>
-                        <input
-                          id="nombreSupervisorCav"
-                          type="text"
-                          value={formCav.nombreSupervisor}
-                          onChange={(evento) =>
-                            setFormCav((prev) => ({
-                              ...prev,
-                              nombreSupervisor: evento.target.value,
-                            }))
-                          }
-                        />
-                      </div>
+                      <CamposSupervisores
+                        prefijo="cav-supervisor"
+                        supervisores={formCav.supervisores}
+                        disabled={guardando}
+                        onChange={(supervisores) =>
+                          setFormCav((prev) => ({ ...prev, supervisores }))
+                        }
+                      />
                     </div>
 
                     <div className="ciudades-cavs__form-columna">
@@ -1379,23 +1499,14 @@ function CiudadesCavs({ onVolver }) {
                                       />
                                     </div>
 
-                                    <div className="ciudades-cavs__info-campo">
-                                      <label htmlFor={`nuevo-cav-supervisor-${index}`}>
-                                        Nombre del supervisor
-                                      </label>
-                                      <input
-                                        id={`nuevo-cav-supervisor-${index}`}
-                                        type="text"
-                                        value={cav.info.supervisor}
-                                        onChange={(evento) =>
-                                          cambiarInfoNuevoCavCiudad(
-                                            index,
-                                            'supervisor',
-                                            evento.target.value
-                                          )
-                                        }
-                                      />
-                                    </div>
+                                    <CamposSupervisores
+                                      prefijo={`nuevo-cav-supervisor-${index}`}
+                                      supervisores={cav.info.supervisores}
+                                      disabled={guardando}
+                                      onChange={(supervisores) =>
+                                        cambiarInfoNuevoCavCiudad(index, 'supervisores', supervisores)
+                                      }
+                                    />
 
                                     <div className="ciudades-cavs__info-campo">
                                       <label htmlFor={`nuevo-cav-terminales-${index}`}>
@@ -1521,23 +1632,14 @@ function CiudadesCavs({ onVolver }) {
                                   />
                                 </div>
 
-                                <div className="ciudades-cavs__info-campo">
-                                  <label htmlFor={`cav-supervisor-${index}`}>
-                                    Nombre del supervisor
-                                  </label>
-                                  <input
-                                    id={`cav-supervisor-${index}`}
-                                    type="text"
-                                    value={cav.info.supervisor}
-                                    onChange={(evento) =>
-                                      cambiarInfoCavCiudad(
-                                        index,
-                                        'supervisor',
-                                        evento.target.value
-                                      )
-                                    }
-                                  />
-                                </div>
+                                <CamposSupervisores
+                                  prefijo={`cav-supervisor-${index}`}
+                                  supervisores={cav.info.supervisores}
+                                  disabled={guardando}
+                                  onChange={(supervisores) =>
+                                    cambiarInfoCavCiudad(index, 'supervisores', supervisores)
+                                  }
+                                />
 
                                 <div className="ciudades-cavs__info-campo">
                                   <label htmlFor={`cav-terminales-${index}`}>

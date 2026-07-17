@@ -144,7 +144,8 @@ def crear_ciudad_completa(body: CiudadCompletaCrear):
             "nombre_cav": cav.nombre_cav.strip(),
             "direccion": cav.direccion.strip(),
             "nombre_jefe": cav.nombre_jefe.strip(),
-            "nombre_supervisor": cav.nombre_supervisor.strip(),
+            "nombre_supervisor": (cav.nombre_supervisor or "").strip(),
+            "supervisores": [supervisor.model_dump() for supervisor in cav.supervisores],
             "numero_terminales": cav.numero_terminales,
         }
         for cav in body.cavs

@@ -52,16 +52,17 @@ function Header() {
           <div className="header__logo">GI</div>
 
           <div>
-            <p className="header__subtitulo">Gestion de incidentes</p>
+            <p className="header__subtitulo">Gestión de incidentes</p>
             <h1 className="header__titulo">Incident Center EC</h1>
           </div>
         </div>
 
         <div className="header__acciones">
-          <nav className="header__navegacion" aria-label="Navegacion principal">
+          <nav className="header__navegacion" aria-label="Navegación principal">
             {puedeRegistrarIncidente && (
               <NavLink
                 to="/registrar-incidente"
+                target="_self"
                 className={({ isActive }) =>
                   `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
                 }
@@ -73,6 +74,7 @@ function Header() {
             {puedeVerMasivos && (
               <NavLink
                 to="/masivos"
+                target="_self"
                 className={({ isActive }) =>
                   `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
                 }
@@ -84,6 +86,7 @@ function Header() {
             {puedeVerHistorial && (
               <NavLink
                 to="/historial-incidentes"
+                target="_self"
                 className={({ isActive }) =>
                   `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
                 }
@@ -95,6 +98,7 @@ function Header() {
             {puedeGestionarContactos && (
               <NavLink
                 to="/contactos"
+                target="_self"
                 className={({ isActive }) =>
                   `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
                 }
@@ -106,11 +110,12 @@ function Header() {
             {puedeGestionarConfiguracion && (
               <NavLink
                 to="/configuracion-avanzada"
+                target="_self"
                 className={({ isActive }) =>
                   `header__enlace ${isActive ? 'header__enlace--activo' : ''}`
                 }
               >
-                Configuracion avanzada
+                Configuración avanzada
               </NavLink>
             )}
           </nav>

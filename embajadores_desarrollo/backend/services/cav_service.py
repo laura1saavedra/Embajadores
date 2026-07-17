@@ -90,6 +90,7 @@ def asegurar_columnas_detalle_cav(db) -> None:
             "direccion": "VARCHAR(255)",
             "nombre_jefe": "VARCHAR(150)",
             "nombre_supervisor": "VARCHAR(150)",
+            "supervisores": "JSONB NOT NULL DEFAULT '[]'::jsonb",
             "numero_terminales": "INTEGER",
         },
     )
@@ -117,7 +118,20 @@ def _normalizar_texto(valor: Optional[str]) -> Optional[str]:
     return texto or None
 
 
+def _normalizar_supervisores(supervisores: Optional[List[Dict]]) -> List[Dict[str, str]]:
+    resultado = []
+    for supervisor in supervisores or []:
+        nombre = _normalizar_texto(supervisor.get("nombre"))
+        telefono = "".join(filter(str.isdigit, str(supervisor.get("telefono") or "")))
+        if nombre:
+            resultado.append({"nombre": nombre, "telefono": telefono})
+    return resultado
+
+
 def _cav_a_dict(cav: Cav) -> Dict[str, Any]:
+    supervisores = list(cav.supervisores or [])
+    if not supervisores and cav.nombre_supervisor:
+        supervisores = [{"nombre": cav.nombre_supervisor, "telefono": ""}]
     return {
         "id_cav": cav.id_cav,
         "nombre_cav": cav.nombre_cav,
@@ -125,6 +139,7 @@ def _cav_a_dict(cav: Cav) -> Dict[str, Any]:
         "direccion": cav.direccion,
         "nombre_jefe": cav.nombre_jefe,
         "nombre_supervisor": cav.nombre_supervisor,
+        "supervisores": supervisores,
         "numero_terminales": cav.numero_terminales,
         "ciudad_id": cav.ciudad_id,
         "ciudad_nombre": (
@@ -222,6 +237,7 @@ class CavService:
         direccion: Optional[str] = None,
         nombre_jefe: Optional[str] = None,
         nombre_supervisor: Optional[str] = None,
+        supervisores: Optional[List[Dict]] = None,
         numero_terminales: Optional[int] = None,
     ) -> Tuple[Optional[Dict], Optional[str]]:
         try:
@@ -258,11 +274,13 @@ class CavService:
                         "Ya existe un CAV con ese nombre en la ciudad"
                     )
 
+                supervisores_limpios = _normalizar_supervisores(supervisores)
                 nuevo = Cav(
                     nombre_cav=nombre,
                     direccion=_normalizar_texto(direccion),
                     nombre_jefe=_normalizar_texto(nombre_jefe),
-                    nombre_supervisor=_normalizar_texto(nombre_supervisor),
+                    nombre_supervisor=(supervisores_limpios[0]["nombre"] if supervisores_limpios else _normalizar_texto(nombre_supervisor)),
+                    supervisores=supervisores_limpios,
                     numero_terminales=numero_terminales,
                     ciudad_id=ciudad_id,
                 )
@@ -296,6 +314,7 @@ class CavService:
         direccion: Optional[str] = None,
         nombre_jefe: Optional[str] = None,
         nombre_supervisor: Optional[str] = None,
+        supervisores: Optional[List[Dict]] = None,
         numero_terminales: Optional[int] = None,
     ) -> Tuple[Optional[Dict], Optional[str]]:
         try:
@@ -348,7 +367,9 @@ class CavService:
                 cav.ciudad_id = ciudad_id
                 cav.direccion = _normalizar_texto(direccion)
                 cav.nombre_jefe = _normalizar_texto(nombre_jefe)
-                cav.nombre_supervisor = _normalizar_texto(nombre_supervisor)
+                supervisores_limpios = _normalizar_supervisores(supervisores)
+                cav.nombre_supervisor = supervisores_limpios[0]["nombre"] if supervisores_limpios else _normalizar_texto(nombre_supervisor)
+                cav.supervisores = supervisores_limpios
                 cav.numero_terminales = numero_terminales
 
                 db.commit()

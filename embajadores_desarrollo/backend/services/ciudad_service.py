@@ -12,7 +12,7 @@ from sqlalchemy.orm import joinedload
 
 from db import get_db_session
 from models import Ciudad, Cav, Incidente
-from services.cav_service import asegurar_columnas_estado_cav
+from services.cav_service import asegurar_columnas_estado_cav, _normalizar_supervisores
 
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,9 @@ def asegurar_columnas_estado_ciudad(db) -> None:
 
 
 def _cav_a_dict(cav: Cav) -> Dict[str, Any]:
+    supervisores = list(cav.supervisores or [])
+    if not supervisores and cav.nombre_supervisor:
+        supervisores = [{"nombre": cav.nombre_supervisor, "telefono": ""}]
     return {
         "id_cav": cav.id_cav,
         "nombre_cav": cav.nombre_cav,
@@ -42,6 +45,7 @@ def _cav_a_dict(cav: Cav) -> Dict[str, Any]:
         "direccion": cav.direccion,
         "nombre_jefe": cav.nombre_jefe,
         "nombre_supervisor": cav.nombre_supervisor,
+        "supervisores": supervisores,
         "numero_terminales": cav.numero_terminales,
     }
 
@@ -186,15 +190,17 @@ class CiudadService:
                     nombre_cav = _normalizar_nombre(cav.get("nombre_cav", ""))
                     direccion = _normalizar_texto(cav.get("direccion", ""))
                     nombre_jefe = _normalizar_texto(cav.get("nombre_jefe", ""))
-                    nombre_supervisor = _normalizar_texto(
-                        cav.get("nombre_supervisor", "")
+                    supervisores = _normalizar_supervisores(cav.get("supervisores"))
+                    nombre_supervisor = (
+                        supervisores[0]["nombre"] if supervisores
+                        else _normalizar_texto(cav.get("nombre_supervisor", ""))
                     )
                     numero_terminales = cav.get("numero_terminales")
 
                     if not nombre_cav:
                         continue
 
-                    if not direccion or not nombre_jefe or not nombre_supervisor:
+                    if not direccion or not nombre_jefe or not supervisores:
                         return None, (
                             f"Completa direccion, jefe y supervisor para el CAV '{nombre_cav}'"
                         )
@@ -216,6 +222,7 @@ class CiudadService:
                             "direccion": direccion,
                             "nombre_jefe": nombre_jefe,
                             "nombre_supervisor": nombre_supervisor,
+                            "supervisores": supervisores,
                             "numero_terminales": numero_terminales,
                         }
                     )
@@ -232,6 +239,7 @@ class CiudadService:
                             direccion=cav["direccion"],
                             nombre_jefe=cav["nombre_jefe"],
                             nombre_supervisor=cav["nombre_supervisor"],
+                            supervisores=cav["supervisores"],
                             numero_terminales=cav["numero_terminales"],
                             ciudad_id=nueva.id_ciudad,
                         )

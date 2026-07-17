@@ -26,6 +26,7 @@ function NoEncontrada() {
             <div className="no-encontrada__acciones">
               <Link
                 to="/registrar-incidente"
+                target="_self"
                 className="no-encontrada__boton no-encontrada__boton--principal"
               >
                 Ir a registrar incidente
@@ -33,6 +34,7 @@ function NoEncontrada() {
 
               <Link
                 to="/historial-incidentes"
+                target="_self"
                 className="no-encontrada__boton no-encontrada__boton--secundario"
               >
                 Ir al historial

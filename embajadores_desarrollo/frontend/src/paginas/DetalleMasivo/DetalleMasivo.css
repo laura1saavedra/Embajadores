@@ -478,6 +478,13 @@
   margin-bottom: 16px;
 }
 
+.detalle-masivo__cabecera-titulo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
 .detalle-masivo__subtitulo {
   margin: 0;
   font-size: 20px;
@@ -567,8 +574,7 @@
     justify-content: flex-start;
   }
 
-  .detalle-masivo__filtro-ciudad,
-  .detalle-masivo__total {
+  .detalle-masivo__filtro-ciudad {
     width: 100%;
   }
 }
@@ -587,8 +593,7 @@
     align-items: stretch;
   }
 
-  .detalle-masivo__filtro-ciudad,
-  .detalle-masivo__total {
+  .detalle-masivo__filtro-ciudad {
     width: 100%;
   }
 

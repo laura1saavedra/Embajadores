@@ -118,6 +118,7 @@ function ListaIncidentes({
               <td>
                 <Link
                   to={`/detalle-incidente/${incidente.idIncidente}`}
+                  target="_self"
                   className="lista-incidentes__enlace"
                 >
                   Ver detalle

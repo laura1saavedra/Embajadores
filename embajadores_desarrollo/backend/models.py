@@ -7,7 +7,7 @@ Esquema: API_PROD
 """
 
 from sqlalchemy import (
-    Boolean, Column, Integer, String, DateTime, Text,
+    Boolean, Column, Integer, String, DateTime, Text, JSON,
     ForeignKey, UniqueConstraint, Index
 )
 from sqlalchemy.orm import relationship
@@ -44,6 +44,7 @@ class Cav(Base):
     direccion = Column(String(255), nullable=True)
     nombre_jefe = Column(String(150), nullable=True)
     nombre_supervisor = Column(String(150), nullable=True)
+    supervisores = Column(JSON, nullable=False, default=list)
     numero_terminales = Column(Integer, nullable=True)
     activo = Column(Boolean, nullable=False, default=True)
     ciudad_id = Column(

@@ -92,6 +92,7 @@ def crear_cav(body: CavCrear):
     direccion = _texto_limpio(body.direccion)
     nombre_jefe = _texto_limpio(body.nombre_jefe)
     nombre_supervisor = _texto_limpio(body.nombre_supervisor)
+    supervisores = [supervisor.model_dump() for supervisor in body.supervisores]
 
     if not nombre:
         return JSONResponse(
@@ -111,6 +112,7 @@ def crear_cav(body: CavCrear):
         direccion=direccion,
         nombre_jefe=nombre_jefe,
         nombre_supervisor=nombre_supervisor,
+        supervisores=supervisores,
         numero_terminales=body.numero_terminales,
     )
 
@@ -134,6 +136,7 @@ def actualizar_cav(
         and body.direccion is None
         and body.nombre_jefe is None
         and body.nombre_supervisor is None
+        and body.supervisores is None
         and body.numero_terminales is None
     ):
         return JSONResponse(
@@ -183,6 +186,11 @@ def actualizar_cav(
             _texto_limpio(body.nombre_supervisor)
             if body.nombre_supervisor is not None
             else datos_actuales.get("nombre_supervisor")
+        ),
+        supervisores=(
+            [supervisor.model_dump() for supervisor in body.supervisores]
+            if body.supervisores is not None
+            else datos_actuales.get("supervisores", [])
         ),
         numero_terminales=(
             body.numero_terminales

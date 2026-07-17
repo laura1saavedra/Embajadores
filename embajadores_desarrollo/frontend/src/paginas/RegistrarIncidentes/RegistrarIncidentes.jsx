@@ -339,6 +339,7 @@ function RegistrarIncidente() {
               {(tipoRegistro === 'historial' || tipoRegistro === 'mixto') && (
                 <Link
                   to="/historial-incidentes"
+                  target="_self"
                   className="ri__enlace"
                 >
                   Ir a historial →
@@ -346,7 +347,7 @@ function RegistrarIncidente() {
               )}
 
               {(tipoRegistro === 'masivo' || tipoRegistro === 'mixto') && (
-                <Link to="/masivos" className="ri__enlace">
+                <Link to="/masivos" target="_self" className="ri__enlace">
                   Ir a resumen →
                 </Link>
               )}

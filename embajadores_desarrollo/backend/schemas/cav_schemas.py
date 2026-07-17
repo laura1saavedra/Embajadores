@@ -1,7 +1,29 @@
 # schemas/cav_schemas.py
 
-from typing import Optional
-from pydantic import BaseModel
+from typing import List, Optional
+import unicodedata
+
+from pydantic import BaseModel, field_validator
+
+
+class SupervisorCav(BaseModel):
+    nombre: str
+    telefono: str = ""
+
+
+def _validar_supervisores_unicos(supervisores):
+    claves = []
+    for supervisor in supervisores or []:
+        nombre = " ".join(supervisor.nombre.strip().split()).lower()
+        nombre = "".join(
+            caracter for caracter in unicodedata.normalize("NFD", nombre)
+            if unicodedata.category(caracter) != "Mn"
+        )
+        if nombre:
+            claves.append(nombre)
+    if len(claves) != len(set(claves)):
+        raise ValueError("No se puede agregar dos veces el mismo nombre y celular de supervisor")
+    return supervisores
 
 
 class CavCrear(BaseModel):
@@ -10,7 +32,10 @@ class CavCrear(BaseModel):
     direccion: Optional[str] = None
     nombre_jefe: Optional[str] = None
     nombre_supervisor: Optional[str] = None
+    supervisores: List[SupervisorCav] = []
     numero_terminales: Optional[int] = None
+
+    _supervisores_unicos = field_validator("supervisores")(_validar_supervisores_unicos)
 
 
 class CavActualizar(BaseModel):
@@ -19,7 +44,10 @@ class CavActualizar(BaseModel):
     direccion: Optional[str] = None
     nombre_jefe: Optional[str] = None
     nombre_supervisor: Optional[str] = None
+    supervisores: Optional[List[SupervisorCav]] = None
     numero_terminales: Optional[int] = None
+
+    _supervisores_unicos = field_validator("supervisores")(_validar_supervisores_unicos)
 
 
 class CavEstadoActualizar(BaseModel):
@@ -35,6 +63,7 @@ class CavRespuesta(BaseModel):
     direccion: Optional[str] = None
     nombre_jefe: Optional[str] = None
     nombre_supervisor: Optional[str] = None
+    supervisores: List[SupervisorCav] = []
     numero_terminales: Optional[int] = None
 
     class Config:

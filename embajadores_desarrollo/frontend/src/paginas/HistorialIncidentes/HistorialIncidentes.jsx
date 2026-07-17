@@ -59,6 +59,17 @@ const normalizarFiltrosGuardados = (filtrosGuardados = {}) => {
   return filtros;
 };
 
+const llevarFiltrosAlMesActual = (filtros = {}) => {
+  const fechaActual = obtenerFechaActual();
+
+  return {
+    ...filtros,
+    anio: fechaActual.anio,
+    mes: fechaActual.mes,
+    dia: '',
+  };
+};
+
 const obtenerEstadoHistorialGuardado = () => {
   try {
     const raw = sessionStorage.getItem(ESTADO_HISTORIAL_STORAGE_KEY);
@@ -70,7 +81,9 @@ const obtenerEstadoHistorialGuardado = () => {
     const estado = JSON.parse(raw);
 
     return {
-      filtros: normalizarFiltrosGuardados(estado.filtros),
+      filtros: llevarFiltrosAlMesActual(
+        normalizarFiltrosGuardados(estado.filtros)
+      ),
       paginaActual: Number(estado.paginaActual) || 1,
     };
   } catch {
@@ -296,11 +309,25 @@ function HistorialIncidentes() {
   useEffect(() => {
     cargarInformacionInicial();
 
+    const validarMesAlActivarPestana = () => {
+      if (document.visibilityState === 'visible') {
+        aplicarCambioMesAutomatico(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', validarMesAlActivarPestana);
+
     const intervalo = setInterval(() => {
       aplicarCambioMesAutomatico();
     }, 60000);
 
-    return () => clearInterval(intervalo);
+    return () => {
+      clearInterval(intervalo);
+      document.removeEventListener(
+        'visibilitychange',
+        validarMesAlActivarPestana
+      );
+    };
   }, []);
 
   useEffect(() => {
@@ -503,7 +530,7 @@ function HistorialIncidentes() {
     return crearMensajeCambioMes(periodo, abiertosMesAnterior);
   };
 
-  const aplicarCambioMesAutomatico = async () => {
+  const aplicarCambioMesAutomatico = async (forzarMesActual = false) => {
     const fechaActual = obtenerFechaActual();
     const periodoCalendario = obtenerPeriodoMes({
       anio: fechaActual.anio,
@@ -511,7 +538,15 @@ function HistorialIncidentes() {
     });
     const claveCalendario = obtenerClavePeriodo(periodoCalendario);
 
-    if (!claveCalendario || periodoCalendarioRef.current === claveCalendario) {
+    const periodoFiltros = obtenerClavePeriodo(
+      obtenerPeriodoMes(filtrosRef.current)
+    );
+
+    if (
+      !claveCalendario ||
+      (periodoCalendarioRef.current === claveCalendario &&
+        (!forzarMesActual || periodoFiltros === claveCalendario))
+    ) {
       return false;
     }
 

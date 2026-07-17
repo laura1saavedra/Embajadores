@@ -709,6 +709,69 @@
 
 /* ─────────────────── ESTADOS FORMULARIO ───────────────── */
 
+.ciudades-cavs__supervisores {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+
+.ciudades-cavs__form .ciudades-cavs__supervisores-titulo {
+  margin-bottom: 0;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.ciudades-cavs__supervisor-fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.ciudades-cavs__supervisor-fila input {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.ciudades-cavs__agregar-supervisor {
+  grid-column: 1 / -1;
+  justify-self: start;
+  width: auto;
+  min-height: 38px;
+}
+
+.ciudades-cavs__quitar-supervisor {
+  flex: 0 0 auto;
+}
+
+.ciudades-cavs__supervisores-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ciudades-cavs__supervisores-resumen > span {
+  padding-left: 12px;
+}
+
+.ciudades-cavs__ver-supervisores {
+  align-self: flex-start;
+  margin: 2px 0 0 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #e30613;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.ciudades-cavs__ver-supervisores:hover {
+  color: #b9040f;
+}
+
 .ciudades-cavs__form--editando {
   border: 2px solid #6e2c2f;
   background: linear-gradient(180deg, #fff8f8 0%, #ffffff 100%);

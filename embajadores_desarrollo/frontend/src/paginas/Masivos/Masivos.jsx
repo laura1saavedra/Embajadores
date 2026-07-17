@@ -49,6 +49,17 @@ const normalizarFiltrosGuardados = (filtrosGuardados = {}) => {
   return filtros;
 };
 
+const llevarFiltrosAlMesActual = (filtros = {}) => {
+  const filtrosMesActual = crearFiltrosIniciales();
+
+  return {
+    ...filtros,
+    fechaAnio: filtrosMesActual.fechaAnio,
+    fechaMes: filtrosMesActual.fechaMes,
+    fechaDia: '',
+  };
+};
+
 const obtenerEstadoMasivosGuardado = () => {
   try {
     const raw = sessionStorage.getItem(ESTADO_MASIVOS_STORAGE_KEY);
@@ -60,7 +71,9 @@ const obtenerEstadoMasivosGuardado = () => {
     const estado = JSON.parse(raw);
 
     return {
-      filtros: normalizarFiltrosGuardados(estado.filtros),
+      filtros: llevarFiltrosAlMesActual(
+        normalizarFiltrosGuardados(estado.filtros)
+      ),
       paginaActual: Number(estado.paginaActual) || 1,
     };
   } catch {
@@ -175,10 +188,10 @@ const crearMensajeCambioMes = (periodo, abiertosMesAnterior) => {
       : `${abiertosMesAnterior} incidentes masivos abiertos`;
 
   if (abiertosMesAnterior > 0) {
-    return `Filtro actualizado a ${formatearPeriodo(periodo)}. El mes anterior (${formatearPeriodo(periodoAnterior)}) quedo con ${etiquetaIncidentes}.`;
+    return `Filtro actualizado a ${formatearPeriodo(periodo)}. El mes anterior (${formatearPeriodo(periodoAnterior)}) quedó con ${etiquetaIncidentes}.`;
   }
 
-  return `Filtro actualizado a ${formatearPeriodo(periodo)}. El mes anterior (${formatearPeriodo(periodoAnterior)}) no dejo incidentes masivos abiertos.`;
+  return `Filtro actualizado a ${formatearPeriodo(periodo)}. El mes anterior (${formatearPeriodo(periodoAnterior)}) no dejó incidentes masivos abiertos.`;
 };
 
 const filtrarMasivos = (lista = [], filtros = {}) => {
@@ -270,16 +283,32 @@ function Masivos() {
   useEffect(() => {
     cargarInformacionInicial();
 
+    const validarMesAlActivarPestana = () => {
+      if (document.visibilityState === 'visible') {
+        actualizarMasivosEnSegundoPlano(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', validarMesAlActivarPestana);
+
     const intervalo = setInterval(() => {
       actualizarMasivosEnSegundoPlano();
      }, 60000); // refresca cada 1 minuto 
      
-     return () => clearInterval(intervalo);
+     return () => {
+       clearInterval(intervalo);
+       document.removeEventListener(
+         'visibilitychange',
+         validarMesAlActivarPestana
+       );
+     };
   }, []);
 
-  const actualizarMasivosEnSegundoPlano = async () => {
+  const actualizarMasivosEnSegundoPlano = async (forzarMesActual = false) => {
     try {
-      const cambioAutomatico = await aplicarCambioMesAutomatico();
+      const cambioAutomatico = await aplicarCambioMesAutomatico(
+        forzarMesActual
+      );
 
       if (cambioAutomatico) {
         return;
@@ -431,12 +460,20 @@ function Masivos() {
     return crearMensajeCambioMes(periodo, abiertosMesAnterior);
   };
 
-  const aplicarCambioMesAutomatico = async () => {
+  const aplicarCambioMesAutomatico = async (forzarMesActual = false) => {
     const filtrosCalendario = crearFiltrosIniciales();
     const periodoCalendario = obtenerPeriodoMes(filtrosCalendario);
     const claveCalendario = obtenerClavePeriodo(periodoCalendario);
 
-    if (!claveCalendario || periodoCalendarioRef.current === claveCalendario) {
+    const periodoFiltros = obtenerClavePeriodo(
+      obtenerPeriodoMes(filtrosRef.current)
+    );
+
+    if (
+      !claveCalendario ||
+      (periodoCalendarioRef.current === claveCalendario &&
+        (!forzarMesActual || periodoFiltros === claveCalendario))
+    ) {
       return false;
     }
 
@@ -571,8 +608,8 @@ function Masivos() {
             </h1>
 
             <p className="masivos__hero-descripcion">
-              Consulta los incidentes masivos generados automaticamente por
-              aplicacion, servicio y tipo de falla, revisa su impacto y realiza seguimiento.
+              Consulta los incidentes masivos generados automáticamente por
+              aplicación, servicio y tipo de falla, revisa su impacto y realiza seguimiento.
             </p>
           </div>
         </section>
@@ -593,7 +630,7 @@ function Masivos() {
 
           <div className="masivos__mensaje-periodo">
             Prioriza el seguimiento de los masivos con mayor impacto y valida
-            su estado antes de cerrar la gestion.
+            su estado antes de cerrar la gestión.
           </div>
 
           <button
@@ -602,7 +639,7 @@ function Masivos() {
             onClick={alternarFiltros}
           >
             <span className="masivos__boton-filtros-texto">
-              Filtro de busqueda
+              Filtro de búsqueda
             </span>
 
             <span className="masivos__boton-filtros-lado">
@@ -625,7 +662,7 @@ function Masivos() {
               <section className="filtros-incidentes">
                 <div className="filtros-incidentes__cabecera">
                   <h2 className="filtros-incidentes__titulo">
-                    Filtros de busqueda
+                    Filtros de búsqueda
                   </h2>
 
                   <span className="filtros-incidentes__contador">
@@ -670,13 +707,13 @@ function Masivos() {
                     <div className="filtros-incidentes__campo">
                       <SelectBuscable
                         id="fechaDia"
-                        label="Dia"
+                        label="Día"
                         opciones={DIAS}
                         valor={filtros.fechaDia}
                         onChange={manejarCambioFiltro}
                         disabled={cargandoFiltros}
                         placeholder="Todos"
-                        placeholderBusqueda="Buscar dia..."
+                        placeholderBusqueda="Buscar día..."
                       />
                     </div>
 
@@ -696,13 +733,13 @@ function Masivos() {
                     <div className="filtros-incidentes__campo">
                       <SelectBuscable
                         id="aplicacionId"
-                        label="Aplicacion"
+                        label="Aplicación"
                         opciones={opcionesAplicaciones}
                         valor={filtros.aplicacionId}
                         onChange={manejarCambioFiltro}
                         disabled={cargandoFiltros}
                         placeholder="Todas"
-                        placeholderBusqueda="Buscar aplicacion..."
+                        placeholderBusqueda="Buscar aplicación..."
                       />
                     </div>
 
@@ -807,7 +844,7 @@ function Masivos() {
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Aplicacion</th>
+                    <th>Aplicación</th>
                     <th>Servicio</th>
                     <th>Tipo de falla</th>
                     <th className="masivos__celda-centrada">
@@ -817,10 +854,10 @@ function Masivos() {
                       Usuarios afectados
                     </th>
                     <th className="masivos__celda-centrada">
-                      Usuarios en operacion
+                      Usuarios en operación
                     </th>
                     <th className="masivos__celda-centrada">Estado</th>
-                    <th className="masivos__celda-fecha">Fecha generacion</th>
+                    <th className="masivos__celda-fecha">Fecha generación</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -829,7 +866,7 @@ function Masivos() {
                   {masivosVisibles.map((masivo) => (
                     <tr key={masivo.idMasivo}>
                       <td>#{masivo.idMasivo}</td>
-                      <td>{masivo.aplicacionNombre || 'Sin aplicacion'}</td>
+                      <td>{masivo.aplicacionNombre || 'Sin aplicación'}</td>
                       <td>{masivo.servicioNombre || 'Sin servicio'}</td>
                       <td>{masivo.tipoFallaNombre || 'Sin tipo'}</td>
                       <td className="masivos__celda-centrada">
@@ -850,6 +887,7 @@ function Masivos() {
                       <td>
                         <Link
                           to={`/detalle-masivo/${masivo.idMasivo}`}
+                          target="_self"
                           className="masivos__enlace"
                         >
                           Ver detalle

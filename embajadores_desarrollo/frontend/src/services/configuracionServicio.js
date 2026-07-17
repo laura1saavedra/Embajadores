@@ -65,6 +65,12 @@ const normalizarCavSimple = (cav) => ({
   direccion: cav.direccion ?? '',
   nombreJefe: cav.nombre_jefe ?? '',
   nombreSupervisor: cav.nombre_supervisor ?? '',
+  supervisores: Array.isArray(cav.supervisores)
+    ? cav.supervisores.map((supervisor) => ({
+        nombre: supervisor.nombre ?? '',
+        telefono: supervisor.telefono ?? '',
+      }))
+    : [],
   numeroTerminales: cav.numero_terminales ?? '',
 });
 
@@ -80,6 +86,12 @@ const normalizarCiudad = (ciudad) => ({
         direccion: cav.direccion ?? '',
         nombreJefe: cav.nombre_jefe ?? '',
         nombreSupervisor: cav.nombre_supervisor ?? '',
+        supervisores: Array.isArray(cav.supervisores)
+          ? cav.supervisores.map((supervisor) => ({
+              nombre: supervisor.nombre ?? '',
+              telefono: supervisor.telefono ?? '',
+            }))
+          : [],
         numeroTerminales: cav.numero_terminales ?? '',
       }))
     : [],
@@ -305,7 +317,8 @@ class ConfiguracionServicio {
           nombre_cav: cav.nombre,
           direccion: cav.info.direccion,
           nombre_jefe: cav.info.jefe,
-          nombre_supervisor: cav.info.supervisor,
+          nombre_supervisor: cav.info.supervisores?.[0]?.nombre || '',
+          supervisores: cav.info.supervisores || [],
           numero_terminales: Number(cav.info.terminales),
         })),
       }
@@ -369,7 +382,8 @@ class ConfiguracionServicio {
       ciudad_id: Number(ciudadId),
       direccion: detalle.direccion,
       nombre_jefe: detalle.nombreJefe,
-      nombre_supervisor: detalle.nombreSupervisor,
+      nombre_supervisor: detalle.supervisores?.[0]?.nombre || '',
+      supervisores: detalle.supervisores || [],
       numero_terminales:
         detalle.numeroTerminales !== undefined
           ? Number(detalle.numeroTerminales)
@@ -387,7 +401,8 @@ class ConfiguracionServicio {
         ciudad_id: Number(ciudadId),
         direccion: detalle.direccion,
         nombre_jefe: detalle.nombreJefe,
-        nombre_supervisor: detalle.nombreSupervisor,
+        nombre_supervisor: detalle.supervisores?.[0]?.nombre || '',
+        supervisores: detalle.supervisores || [],
         numero_terminales:
           detalle.numeroTerminales !== undefined
             ? Number(detalle.numeroTerminales)

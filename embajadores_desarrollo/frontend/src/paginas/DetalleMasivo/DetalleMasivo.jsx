@@ -395,9 +395,16 @@ function DetalleMasivo() {
 
         <section className="detalle-masivo__bloque" ref={tablaRef}>
           <div className="detalle-masivo__cabecera-listado">
-            <h2 className="detalle-masivo__subtitulo">
-              CAVs afectados
-            </h2>
+            <div className="detalle-masivo__cabecera-titulo">
+              <h2 className="detalle-masivo__subtitulo">
+                CAVs afectados
+              </h2>
+
+              <div className="detalle-masivo__total">
+                <span>Total</span>
+                <strong>{cavsFiltrados.length}</strong>
+              </div>
+            </div>
 
             <div className="detalle-masivo__cabecera-derecha">
               <div className="detalle-masivo__filtro-ciudad">
@@ -410,11 +417,6 @@ function DetalleMasivo() {
                   placeholder="Todas"
                   placeholderBusqueda="Buscar ciudad..."
                 />
-              </div>
-
-              <div className="detalle-masivo__total">
-                <span>Total</span>
-                <strong>{cavsFiltrados.length}</strong>
               </div>
 
               {!cargando && totalPaginas > 1 && (
