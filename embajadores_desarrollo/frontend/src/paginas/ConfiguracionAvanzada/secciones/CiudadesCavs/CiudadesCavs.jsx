@@ -202,6 +202,19 @@ function CiudadesCavs({ onVolver }) {
     setMensajeExito('');
   };
 
+  const cerrarMensajesYRestablecerCards = () => {
+    limpiarMensajes();
+
+    setEditandoCiudad(null);
+    setEditandoCav(null);
+    setEliminandoCiudad(null);
+    setEliminandoCav(null);
+
+    setFormCiudad(FORM_CIUDAD_INICIAL);
+    setFormCav(FORM_CAV_INICIAL);
+    setMostrarNuevosCavs(false);
+  };
+
   const opcionesCiudades = ciudades.map((ciudad) => ({
     valor: ciudad.idCiudad,
     etiqueta: ciudad.nombreCiudad,
@@ -882,7 +895,7 @@ function CiudadesCavs({ onVolver }) {
           <button
             type="button"
             className="configuracion__alerta-cerrar"
-            onClick={() => setMensajeError('')}
+            onClick={cerrarMensajesYRestablecerCards}
             aria-label="Cerrar mensaje"
           >
             ×
@@ -896,7 +909,7 @@ function CiudadesCavs({ onVolver }) {
           <button
             type="button"
             className="configuracion__alerta-cerrar"
-            onClick={() => setMensajeExito('')}
+            onClick={cerrarMensajesYRestablecerCards}
             aria-label="Cerrar mensaje"
           >
             ×

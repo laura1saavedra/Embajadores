@@ -286,47 +286,34 @@ class ServicioService:
 
                 tiene_incidentes_historial = (
                     db.query(AplicacionAfectada)
-                    .filter(AplicacionAfectada.aplicacion_id == servicio.aplicacion_id)
+                    .filter(AplicacionAfectada.servicio_id == id_servicio)
                     .first()
                     is not None
                 )
 
                 tiene_incidentes_resumen = (
                     db.query(Masivo)
-                    .filter(Masivo.aplicacion_id == servicio.aplicacion_id)
+                    .filter(Masivo.servicio_id == id_servicio)
                     .first()
                     is not None
                 )
 
                 if tiene_incidentes_historial and tiene_incidentes_resumen:
                     return None, (
-                        "No se puede eliminar el servicio porque su aplicacion "
-                        "esta asociada a incidentes en historial y resumen"
+                        "No se puede eliminar el servicio porque esta asociado "
+                        "a incidentes en historial y resumen"
                     )
 
                 if tiene_incidentes_historial:
                     return None, (
-                        "No se puede eliminar el servicio porque su aplicacion "
-                        "esta asociada a incidentes en historial"
+                        "No se puede eliminar el servicio porque esta asociado "
+                        "a incidentes en historial"
                     )
 
                 if tiene_incidentes_resumen:
                     return None, (
-                        "No se puede eliminar el servicio porque su aplicacion "
-                        "esta asociada a incidentes en resumen"
-                    )
-
-                cantidad_servicios_aplicacion = (
-                    db.query(Servicio)
-                    .filter(Servicio.aplicacion_id == servicio.aplicacion_id)
-                    .count()
-                )
-
-                if cantidad_servicios_aplicacion <= 1:
-                    return None, (
-                        "No se puede eliminar el servicio porque la aplicacion "
-                        "quedaria sin servicios asociados. Si no tiene incidentes "
-                        "asociados, elimina la aplicacion junto con su servicio."
+                        "No se puede eliminar el servicio porque esta asociado "
+                        "a incidentes en resumen"
                     )
 
                 db.delete(servicio)

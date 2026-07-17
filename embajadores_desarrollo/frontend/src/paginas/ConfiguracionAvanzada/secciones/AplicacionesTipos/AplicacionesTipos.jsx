@@ -48,6 +48,8 @@ function AplicacionesTipos({ onVolver }) {
   const [mostrarNuevosServicios, setMostrarNuevosServicios] = useState(false);
 
   const inicioRef = useRef(null);
+  const formularioAplicacionRef = useRef(null);
+  const formularioTipoFallaRef = useRef(null);
 
   const subirAlInicio = () => {
     setTimeout(() => {
@@ -69,6 +71,35 @@ function AplicacionesTipos({ onVolver }) {
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  useEffect(() => {
+    const formularioActivo =
+      editandoAplicacion ||
+      editandoServicio ||
+      eliminandoAplicacion ||
+      eliminandoServicio;
+
+    if (!formularioActivo) return;
+
+    formularioAplicacionRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [
+    editandoAplicacion,
+    editandoServicio,
+    eliminandoAplicacion,
+    eliminandoServicio,
+  ]);
+
+  useEffect(() => {
+    if (!editandoTipoFalla && !eliminandoTipoFalla) return;
+
+    formularioTipoFallaRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [editandoTipoFalla, eliminandoTipoFalla]);
 
   const cargarDatos = async () => {
     try {
@@ -95,6 +126,22 @@ function AplicacionesTipos({ onVolver }) {
   const limpiarMensajes = () => {
     setMensajeError('');
     setMensajeExito('');
+  };
+
+  const cerrarMensajesYRestablecerCards = () => {
+    limpiarMensajes();
+
+    setEditandoAplicacion(null);
+    setEditandoServicio(null);
+    setEditandoTipoFalla(null);
+    setEliminandoAplicacion(null);
+    setEliminandoServicio(null);
+    setEliminandoTipoFalla(null);
+
+    setFormAplicacion(FORM_INICIAL);
+    setFormServicio(FORM_SERVICIO_INICIAL);
+    setFormTipoFalla(FORM_INICIAL);
+    setMostrarNuevosServicios(false);
   };
 
   const aplicacionesFiltradas = useMemo(() => {
@@ -773,7 +820,7 @@ function AplicacionesTipos({ onVolver }) {
           <button
             type="button"
             className="configuracion__alerta-cerrar"
-            onClick={() => setMensajeError('')}
+            onClick={cerrarMensajesYRestablecerCards}
             aria-label="Cerrar mensaje"
           >
             ×
@@ -787,7 +834,7 @@ function AplicacionesTipos({ onVolver }) {
           <button
             type="button"
             className="configuracion__alerta-cerrar"
-            onClick={() => setMensajeExito('')}
+            onClick={cerrarMensajesYRestablecerCards}
             aria-label="Cerrar mensaje"
           >
             ×
@@ -1127,6 +1174,7 @@ function AplicacionesTipos({ onVolver }) {
 
         <aside className="aplicaciones-tipos__sidebar">
           <form
+            ref={formularioAplicacionRef}
             onSubmit={editandoServicio ? guardarServicio : guardarAplicacion}
             className={`aplicaciones-tipos__form ${
               editandoAplicacion || editandoServicio
@@ -1470,6 +1518,7 @@ function AplicacionesTipos({ onVolver }) {
           )}
 
           <form
+            ref={formularioTipoFallaRef}
             onSubmit={guardarTipoFalla}
             className={`aplicaciones-tipos__form ${
               editandoTipoFalla ? 'aplicaciones-tipos__form--editando' : ''
